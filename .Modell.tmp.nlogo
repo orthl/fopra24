@@ -1,9 +1,3 @@
-;----- Github Befehle -----
-;cd /P/Uni/Forschungspraktikum/NetLogo
-;git status
-;git add .
-;git commit -m "Modell angepasst, neue Funktionen hinzugefügt"
-;git push
 
 globals [
   infinity         ; used to represent the distance between two turtles with no path between them
