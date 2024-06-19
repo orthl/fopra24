@@ -8,20 +8,18 @@
 ;
 
 globals [
-  infinity         ; used to represent the distance between two turtles with no path between them
-  all-influencer
+  all-influencer ; list of all influencer
 ]
 
 turtles-own [
-  ;influencer ja/nein
-  influencer?
+  influencer? ; is turtle an influencer or not
 ]
 
 links-own [
-  ; influencer haben durchschnittlich doppelt so viel Links wie die "privatpersonen"
+
 ]
 
-directed-link-breed [all-followed follows]
+directed-link-breed [all-followed follows] ; directed links to distinguish between follower and following
 
 ; -----------------------------------------------------------------------------------------
 ; ------------------------------- Setup ---------------------------------------------------
@@ -29,27 +27,125 @@ directed-link-breed [all-followed follows]
 
 to setup
   clear-all
+  reset-ticks
 
-  ; make the nodes and arrange them in a circle in order by who number
-  set-default-shape turtles "circle"
-  set all-influencer []
-  create-turtles num-nodes [ set color gray + 2 ]
-  layout-circle (sort turtles) max-pxcor - 1
-  ask n-of (influencer-percentage * num-nodes) turtles [
-    set influencer? true
-    set all-influencer fput self all-influencer
-  ]
-
-  ; Create the initial lattice
+  ; Create network
+  create-nodes
   wire-lattice
-  rewire-all
-  ;rewire-influencer
+  rewire
+  layout
 
   ask links [ set color gray ]
   print-turtle-link-counts
   print-influencer-count
 
 end
+
+to go
+  print (word "go")
+  tick
+end
+
+; -----------------------------------------------------------------------------------------
+; ------------------------------- network -------------------------------------------------
+; -----------------------------------------------------------------------------------------
+
+; ------------------ create nodes ---------------
+to create-nodes
+  ; create nodes, arrange them in a circle
+  set-default-shape turtles "circle"
+  set all-influencer []
+  create-turtles num-nodes [ set color gray + 2 ]
+  layout-circle (sort turtles) max-pxcor - 1
+
+  ; pick x influencers and put them into global list
+  ask n-of (influencer-percentage * num-nodes) turtles [
+    set influencer? true
+    set all-influencer fput self all-influencer
+    set color blue
+  ]
+end
+
+; ------------------ create lattice ---------------
+to wire-lattice
+  ; iterate over nodes
+  let n 0
+  while [ n < count turtles ] [
+    ; make edges with the next x neighbors
+    let cnt 1
+    ;repeat num_connected_neighbors [
+    repeat random-num-connected-neighbors [
+      make-edge turtle n
+     turtle ((n + cnt) mod count turtles)
+     "curve" ; alternatively "default"
+      set cnt cnt + 1
+    ]
+    set n n + 1
+  ]
+end
+
+to-report random-num-connected-neighbors
+  let lower-limit num-connected-neighbors / 2
+  let upper-limit num-connected-neighbors + lower-limit
+  report round (random-float lower-limit + random-float upper-limit)
+end
+
+; ------------------ rewire links ------------------
+to rewire
+  ask links [
+    ; test, if link should be rewired
+    if (random-float 1) < rewiring-probability [
+      ; node-A remains the same
+      let node-A end1
+
+      ; probalbility that the node should be rewired to an influencer or not
+      ifelse (random-float 1) > influencer-link-prob [
+        ; if the link should not be rewired to an influencer,
+        ; find a node distinct from A, which has no link to A and is no influencer, link those two nodes an delete the old one
+        let node-B one-of turtles with [ (self != node-A) and (not link-neighbor? node-A) and not(member? self all-influencer) ]
+        ask node-A [ create-follows-to node-B ]
+        die
+       ][
+        ; if the link should be rewired to an influencer, take a random one out of the list, link the nodes and delete old link
+        ; for the one-of condition, the list of influencer should be an agentset
+        let all-influencer-set turtle-set all-influencer
+        let random-influencer one-of all-influencer-set with [(self != node-A) and (not link-neighbor? node-A)]
+
+        ; check if there is an influencer left, that this node can follow
+
+        ifelse random-influencer != nobody [
+          ; if there is an influencer left, rewire with a random one
+          ask node-A [ create-follows-to random-influencer ]
+          die
+        ][
+          ; if there is no influencer left, rewire with a random node
+          let node-B one-of turtles with [ (self != node-A) and (not link-neighbor? node-A) and not(member? self all-influencer) ]
+          ask node-A [ create-follows-to node-B ]
+          die
+        ]
+      ]
+     ]
+   ]
+end
+
+
+; ----------- make edge from node A to node B ---------
+to make-edge [ node-A node-B the-shape]
+   ask node-A [
+    create-follows-to node-B [
+      set shape the-shape
+    ]
+  ]
+end
+
+;----------------- rearrange network -----------
+
+to layout
+  repeat 10 [ layout-spring turtles links 0.2 5 1]
+end
+
+
+
 
 ; -------------- report -----------------------------------------------------------------
 
@@ -74,90 +170,19 @@ end
 
 to print-influencer-count
   let cnt 0
+  let all-followers []
   ask turtles [
     if influencer? = true [
           set cnt cnt + 1
-          print count my-in-links
+          let num-links count my-in-links
+          set all-followers fput num-links all-followers
        ]
   ]
   print (word "Number of influencers " cnt)
+  set all-followers sort all-followers
+  print all-followers
 end
 
-; -----------------------------------------------------------------------------------------
-; ------------------------------- network -------------------------------------------------
-; -----------------------------------------------------------------------------------------
-
-; ------------------ create lattice ---------------
-to wire-lattice
-  ; iterate over the turtles
-  let n 0
-  while [ n < count turtles ] [
-    ; make edges with the next x neighbors
-    let cnt 1
-    repeat num_connected_neighbors [
-      make-edge turtle n
-     turtle ((n + cnt) mod count turtles)
-     "curve" ;alternativ "default"
-      set cnt cnt + 1
-    ]
-    set n n + 1
-  ]
-end
-
-; ------------------ rewire links ------------------
-to rewire-all
-  ; confirm we have the right amount of turtles, otherwise reinitialize
-  if count turtles != num-nodes [ setup ]
-
-  ask links [
-    if (random-float 1) < rewiring-probability [
-    ; node-A remains the same
-      let node-A end1
-      ; probalbility that the node should be rewired to an influencer or not
-      ifelse (random-float 1) > influencer-link-prob [
-        ; find a node distinct from A, which has no link to A and is no influencer, link those two nodes an delete the old one
-        let node-B one-of turtles with [ (self != node-A) and (not link-neighbor? node-A) and not(member? self all-influencer) ]
-        ask node-A [ create-follows-to node-B ]
-        die
-       ][
-        ; if the link should be rewired to an influencer, take a random one out of the list, link the nodes and delete old link
-        ; for the one-of condition, the list of influencer should be an agentset
-        let all-influencer-set turtle-set all-influencer
-        let random-influencer one-of all-influencer-set with [(self != node-A) and (not link-neighbor? node-A)]
-        ask node-A [ create-follows-to random-influencer ]
-        die
-      ]
-     ]
-   ]
-end
-
-
-; ------------------ make edge  ----------------------
-to make-edge [ node-A node-B the-shape]
-  ;ask node-A [
-    ;create-link-with node-B  [
-    ;  set shape the-shape
-    ;]
-  ;]
-   ask node-A [
-    create-follows-to node-B [
-      set shape the-shape
-    ]
-  ]
-end
-
-; ------------------ rewire influencer  ----------------
-to rewire-influencer
-  ask turtles [
-    if influencer? = true [
-      print self
-      repeat 7 [
-        let node-B one-of turtles with [ (not link-neighbor? self) ]
-        make-edge node-B self "curve"
-      ]
-    ]
-  ]
-end
 
 ; Copyright 2015 Uri Wilensky.
 ; See Info tab for full copyright and license.
@@ -185,30 +210,30 @@ GRAPHICS-WINDOW
 20
 1
 1
-0
+1
 ticks
 30.0
 
 SLIDER
-120
 10
-307
-41
+120
+165
+153
 num-nodes
 num-nodes
 50
-1000
-400.0
+2000
+200.0
 50
 1
 NIL
 HORIZONTAL
 
 SLIDER
-120
-50
-310
-83
+10
+160
+165
+193
 rewiring-probability
 rewiring-probability
 0
@@ -220,9 +245,9 @@ NIL
 HORIZONTAL
 
 BUTTON
-11
+5
 10
-116
+110
 43
 setup
 setup
@@ -237,49 +262,76 @@ NIL
 1
 
 SLIDER
-120
-95
-310
-128
-num_connected_neighbors
-num_connected_neighbors
+10
+200
+165
+233
+num-connected-neighbors
+num-connected-neighbors
 1
 10
-4.0
+3.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-120
-140
-310
-173
+10
+240
+165
+273
 influencer-percentage
 influencer-percentage
 0
 0.3
-0.05
+0.03
 0.01
 1
 NIL
 HORIZONTAL
 
 SLIDER
-120
-190
-310
-223
+10
+280
+165
+313
 influencer-link-prob
 influencer-link-prob
 0
 1
-0.3
+0.25
 0.05
 1
 NIL
 HORIZONTAL
+
+TEXTBOX
+15
+95
+165
+113
+Networkvariables
+11
+0.0
+1
+
+BUTTON
+135
+10
+198
+43
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?
