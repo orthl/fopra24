@@ -7,12 +7,56 @@
 ; influencer-link-probability: Wahrscheinlichkeit dafür, dass ein Link in der Rewire-Phase zu einem Influencer statt einem "normalen" Node gezogen wird
 ;
 
+;----- Github Befehle -----
+;cd /P/Uni/Forschungspraktikum/NetLogo
+;git status
+;git add .
+;git commit -m "Message"
+;git push
+;-------
+;cd /P/Uni/Forschungspraktikum/NetLogo
+;git status
+;git fetch
+;git pull
+
 globals [
   all-influencer ; list of all influencer
 ]
 
 turtles-own [
-  influencer? ; is turtle an influencer or not
+  influencer?              ; Boolean, ob der Agent ein Influencer ist
+
+  ;-------------- Intention --------------
+  intention                ; Composite intention (attitude + social-norm + perceived-behavioral-control) - Weighting: 1/3 each
+
+  ;----- Attitude-----
+  attitude                 ; Composite attitude (initial-attitude + external-influences) - Weighting: 50/50
+
+  initial-attitude         ; Initial attitude of the agent
+
+  ;--- External Influences ---
+  external-influences      ; Composite influences (effect + credibility) - Weighting: 50/50
+  effect
+  credibility
+
+  ;----- Social Norm -----
+  social-norm              ; Composite social norm (initial-norm + immediate-environment) - Weighting: 50/50
+
+  initial-norm             ; Initial social norm of the agent
+  immediate-environment    ; Environment is determined by other agents !TODO What determines credibility and effect
+
+  ;----- Perceived Behavioral Control -----
+  perceived-behavioral-control ; Composite perceived behavioral control (self-efficacy + conditions) - Weighting: 50/50
+
+  ;--- Self-Efficacy ---
+  self-efficacy            ; Composite self-efficacy (self-confidence + extraversion) - Weighting: 50/50
+  self-confidence          ; Self-confidence of the agent
+  extraversion             ; Extraversion of the agent
+
+  ;--- Conditions ---
+  conditions               ; Composite conditions (available-time + available-resources) - Weighting: 50/50
+  available-time           ; Available time for the conditions
+  available-resources      ; Available resources for the conditions
 ]
 
 links-own [
@@ -40,6 +84,33 @@ to setup
   print-influencer-count
 
 end
+
+; -------------- Initialization of Agents  ---------------------------------------------
+
+to initialize-agent
+  set initial-attitude random-float 1                      ; Determine initial attitude randomly
+  set effect random-float 1                                ; Determine effect of external influences randomly
+  set credibility random-float 1                           ; Determine credibility of external influences randomly
+  set external-influences (effect + credibility) / 2       ; Calculate composite external influences
+  set attitude (initial-attitude + external-influences) / 2 ; Calculate composite attitude
+
+  set initial-norm random-float 1                          ; Determine initial norm randomly
+  set immediate-environment random-float 1                 ; Determine immediate environment randomly
+  set social-norm (initial-norm + immediate-environment) / 2 ; Calculate composite social norm
+
+  set self-confidence random-float 1                       ; Determine self-confidence randomly
+  set extraversion random-float 1                          ; Determine extraversion randomly
+  set self-efficacy (self-confidence + extraversion) / 2   ; Calculate composite self-efficacy
+
+  set available-time random-float 1                        ; Determine available time randomly
+  set available-resources random-float 1                   ; Determine available resources randomly
+  set conditions (available-time + available-resources) / 2 ; Calculate composite conditions
+
+  set perceived-behavioral-control (self-efficacy + conditions) / 2 ; Calculate composite perceived behavioral control
+
+  set intention (attitude + social-norm + perceived-behavioral-control) / 3 ; Calculate composite intention
+end
+
 
 to go
   print (word "go")
@@ -724,7 +795,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.3.0
+NetLogo 6.4.0
 @#$#@#$#@
 setup
 repeat 5 [rewire-one]

@@ -1,50 +1,69 @@
+; notes: jede Turtle hat 4 ausgehende Links (basierend auf der Nummer der connecteten Nachbarn) und eine zufällige Zahl an Turtles, die ihr folgen
+;        Influencer Turtles haben dabei mehr follower als nicht-influencer
+; num-nodes : Gesamtanzahl der Nodes
+; rewiring-probability: spiegelt p in einem Small Network wider (Wahrscheinlichkeit, dass ein bestehender Link neu mit einem zuf. Node verlinkt wird)
+; num-connected-neighbors: Anzahl an Nachbarn, mit denen der Node initial verbunden wird (entspricht der Anzahl an ausgehenden Links pro Node)
+; influencer-percentage: prozentueller Anteil der Influencer im Netzwerk
+; influencer-link-probability: Wahrscheinlichkeit dafür, dass ein Link in der Rewire-Phase zu einem Influencer statt einem "normalen" Node gezogen wird
+;
+
+;----- Github Befehle -----
+;cd /P/Uni/Forschungspraktikum/NetLogo
+;git status
+
+;git commit -m "Message"
+;git push
+;-------
+;cd /P/Uni/Forschungspraktikum/NetLogo
+;git status
+;git fetch
+;git pull
 
 globals [
-  infinity         ; used to represent the distance between two turtles with no path between them
+  all-influencer ; list of all influencer
 ]
 
 turtles-own [
   influencer?              ; Boolean, ob der Agent ein Influencer ist
 
   ;-------------- Intention --------------
-  intention                ;Zusammengesetzte Intention (haltung + sozialeNorm + wahrgVerhaltenskontrolle) - Gewichtung: je 1/3
+  intention                ; Composite intention (attitude + social-norm + perceived-behavioral-control) - Weighting: 1/3 each
 
-  ;----- Haltung-----
-  haltung                  ; Zusammengesetzte Haltung (initialeHaltung + aeussereEinfluesse) - Gewichtung: 50/50
+  ;----- Attitude-----
+  attitude                 ; Composite attitude (initial-attitude + external-influences) - Weighting: 50/50
 
-  initialeHaltung          ; Initiale Haltung des Agenten
+  initial-attitude         ; Initial attitude of the agent
 
-  ;--- aeussereEinfluesse ---
-  aeussereEinfluesse       ;Zusammengesetzte Einflüsse (wirkung + glaubwuerdigkeit) - Gewichtung: 50/50
-  wirkung
-  glaubwuerdigkeit
+  ;--- External Influences ---
+  external-influences      ; Composite influences (effect + credibility) - Weighting: 50/50
+  effect
+  credibility
 
-  ;----- Soziale Norm -----
-  sozialeNorm              ; Zusammengesetzte sozialeNorm (initaleNorm + unmittelbaresUmfeld) - Gewichtung: 50/50
+  ;----- Social Norm -----
+  social-norm              ; Composite social norm (initial-norm + immediate-environment) - Weighting: 50/50
 
-  initialeNorm             ; Initiale soziale Norm des Agenten
-  unmittelbaresUmfeld      ; Umfeld ergibt sich durch die anderen Agenten !TODO Woraus ergeben sich Glaubwürdigkeit und Wirkung
+  initial-norm             ; Initial social norm of the agent
+  immediate-environment    ; Environment is determined by other agents !TODO What determines credibility and effect
 
+  ;----- Perceived Behavioral Control -----
+  perceived-behavioral-control ; Composite perceived behavioral control (self-efficacy + conditions) - Weighting: 50/50
 
-  ;----- wahrgenommene Verhaltenskontrolle -----
-  wahrgVerhaltenskontrolle ; Zusammengesetzte wahrgenommene Verhaltenskontrolle (Selbstwirksamkeit + Rahmenbedingungen) - Gewichtung: 50/50
+  ;--- Self-Efficacy ---
+  self-efficacy            ; Composite self-efficacy (self-confidence + extraversion) - Weighting: 50/50
+  self-confidence          ; Self-confidence of the agent
+  extraversion             ; Extraversion of the agent
 
-  ;--- Selbstwirksamkeit ---
-  selbstwirksamkeit        ; Zusammengesetzte Selbstwirksamkeit (Selbstvertrauen + Extraversion) - Gewichtung: 50/50
-  selbstvertrauen          ; Selbstvertrauen des Agenten
-  extraversion             ; Extraversion des Agenten
-
-  ;--- Rahmenbedingungen ---
-  rahmenbedinungen         ; Zusammengesetzte Rahmenbedingungen (verfügbareZeit + verfügbareRessourcen) - Gewichtung: 50/50
-  verfügbareZeit           ; Verfügbare Zeit für die Rahmenbedingungen
-  verfügbareRessourcen     ; Verfügbare Ressourcen für die Rahmenbedingungen
+  ;--- Conditions ---
+  conditions               ; Composite conditions (available-time + available-resources) - Weighting: 50/50
+  available-time           ; Available time for the conditions
+  available-resources      ; Available resources for the conditions
 ]
 
 links-own [
-  ; influencer haben durchschnittlich doppelt so viel Links wie die "privatpersonen"
+
 ]
 
-directed-link-breed [all-followed follows]
+directed-link-breed [all-followed follows] ; directed links to distinguish between follower and following
 
 ; -----------------------------------------------------------------------------------------
 ; ------------------------------- Setup ---------------------------------------------------
@@ -52,24 +71,13 @@ directed-link-breed [all-followed follows]
 
 to setup
   clear-all
+  reset-ticks
 
-  ; make the nodes and arrange them in a circle in order by who number
-  set-default-shape turtles "circle"
-  create-turtles num-nodes [
-    set color gray + 2
-    initialize-agent
-  ]
-  layout-circle (sort turtles) max-pxcor - 1
-
-  ask n-of (influencer-percentage * num-nodes) turtles [
-    set influencer? true
-    set color red  ; Influencer werden rot dargestellt
-  ]
-
-  ; Create the initial lattice
+  ; Create network
+  create-nodes
   wire-lattice
-  rewire-all
-  rewire-influencer
+  rewire
+  layout
 
   ask links [ set color gray ]
   print-turtle-link-counts
@@ -77,31 +85,136 @@ to setup
 
 end
 
-; -------------- Initialisierung der Agenten  ---------------------------------------------
+; -------------- Initialization of Agents  ---------------------------------------------
 
 to initialize-agent
-  set initialeHaltung random-float 1                    ; Initiale Haltung zufällig bestimmen
-  set wirkung random-float 1                            ; Wirkung äußerer Einflüsse zufällig bestimmen
-  set glaubwuerdigkeit random-float 1                   ; Glaubwürdigkeit äußerer Einflüsse zufällig bestimmen
-  set aeussereEinfluesse (wirkung + glaubwuerdigkeit) / 2  ; Zusammengesetzte äußere Einflüsse berechnen
-  set haltung (initialeHaltung + aeussereEinfluesse) / 2  ; Zusammengesetzte Haltung berechnen
+  set initial-attitude random-float 1                      ; Determine initial attitude randomly
+  set effect random-float 1                                ; Determine effect of external influences randomly
+  set credibility random-float 1                           ; Determine credibility of external influences randomly
+  set external-influences (effect + credibility) / 2       ; Calculate composite external influences
+  set attitude (initial-attitude + external-influences) / 2 ; Calculate composite attitude
 
-  set initialeNorm random-float 1                       ; Initiale Norm zufällig bestimmen
-  set unmittelbaresUmfeld random-float 1                ; Unmittelbares Umfeld zufällig bestimmen
-  set sozialeNorm (initialeNorm + unmittelbaresUmfeld) / 2  ; Zusammengesetzte soziale Norm berechnen
+  set initial-norm random-float 1                          ; Determine initial norm randomly
+  set immediate-environment random-float 1                 ; Determine immediate environment randomly
+  set social-norm (initial-norm + immediate-environment) / 2 ; Calculate composite social norm
 
-  set selbstvertrauen random-float 1                    ; Selbstvertrauen zufällig bestimmen
-  set extraversion random-float 1                       ; Extraversion zufällig bestimmen
-  set selbstwirksamkeit (selbstvertrauen + extraversion) / 2  ; Zusammengesetzte Selbstwirksamkeit berechnen
+  set self-confidence random-float 1                       ; Determine self-confidence randomly
+  set extraversion random-float 1                          ; Determine extraversion randomly
+  set self-efficacy (self-confidence + extraversion) / 2   ; Calculate composite self-efficacy
 
-  set verfügbareZeit random-float 1                     ; Verfügbare Zeit zufällig bestimmen
-  set verfügbareRessourcen random-float 1               ; Verfügbare Ressourcen zufällig bestimmen
-  set rahmenbedinungen (verfügbareZeit + verfügbareRessourcen) / 2  ; Zusammengesetzte Rahmenbedingungen berechnen
+  set available-time random-float 1                        ; Determine available time randomly
+  set available-resources random-float 1                   ; Determine available resources randomly
+  set conditions (available-time + available-resources) / 2 ; Calculate composite conditions
 
-  set wahrgVerhaltenskontrolle (selbstwirksamkeit + rahmenbedinungen) / 2  ; Zusammengesetzte wahrgenommene Verhaltenskontrolle berechnen
+  set perceived-behavioral-control (self-efficacy + conditions) / 2 ; Calculate composite perceived behavioral control
 
-  set intention (haltung + sozialeNorm + wahrgVerhaltenskontrolle) / 3  ; Zusammengesetzte Intention berechnen
+  set intention (attitude + social-norm + perceived-behavioral-control) / 3 ; Calculate composite intention
 end
+
+
+to go
+  print (word "go")
+  tick
+end
+
+; -----------------------------------------------------------------------------------------
+; ------------------------------- network -------------------------------------------------
+; -----------------------------------------------------------------------------------------
+
+; ------------------ create nodes ---------------
+to create-nodes
+  ; create nodes, arrange them in a circle
+  set-default-shape turtles "circle"
+  set all-influencer []
+  create-turtles num-nodes [ set color gray + 2 ]
+  layout-circle (sort turtles) max-pxcor - 1
+
+  ; pick x influencers and put them into global list
+  ask n-of (influencer-percentage * num-nodes) turtles [
+    set influencer? true
+    set all-influencer fput self all-influencer
+    set color blue
+  ]
+end
+
+; ------------------ create lattice ---------------
+to wire-lattice
+  ; iterate over nodes
+  let n 0
+  while [ n < count turtles ] [
+    ; make edges with the next x neighbors
+    let cnt 1
+    ;repeat num_connected_neighbors [
+    repeat random-num-connected-neighbors [
+      make-edge turtle n
+     turtle ((n + cnt) mod count turtles)
+     "curve" ; alternatively "default"
+      set cnt cnt + 1
+    ]
+    set n n + 1
+  ]
+end
+
+to-report random-num-connected-neighbors
+  let lower-limit num-connected-neighbors / 2
+  let upper-limit num-connected-neighbors + lower-limit
+  report round (random-float lower-limit + random-float upper-limit)
+end
+
+; ------------------ rewire links ------------------
+to rewire
+  ask links [
+    ; test, if link should be rewired
+    if (random-float 1) < rewiring-probability [
+      ; node-A remains the same
+      let node-A end1
+
+      ; probalbility that the node should be rewired to an influencer or not
+      ifelse (random-float 1) > influencer-link-prob [
+        ; if the link should not be rewired to an influencer,
+        ; find a node distinct from A, which has no link to A and is no influencer, link those two nodes an delete the old one
+        let node-B one-of turtles with [ (self != node-A) and (not link-neighbor? node-A) and not(member? self all-influencer) ]
+        ask node-A [ create-follows-to node-B ]
+        die
+       ][
+        ; if the link should be rewired to an influencer, take a random one out of the list, link the nodes and delete old link
+        ; for the one-of condition, the list of influencer should be an agentset
+        let all-influencer-set turtle-set all-influencer
+        let random-influencer one-of all-influencer-set with [(self != node-A) and (not link-neighbor? node-A)]
+
+        ; check if there is an influencer left, that this node can follow
+
+        ifelse random-influencer != nobody [
+          ; if there is an influencer left, rewire with a random one
+          ask node-A [ create-follows-to random-influencer ]
+          die
+        ][
+          ; if there is no influencer left, rewire with a random node
+          let node-B one-of turtles with [ (self != node-A) and (not link-neighbor? node-A) and not(member? self all-influencer) ]
+          ask node-A [ create-follows-to node-B ]
+          die
+        ]
+      ]
+     ]
+   ]
+end
+
+
+; ----------- make edge from node A to node B ---------
+to make-edge [ node-A node-B the-shape]
+   ask node-A [
+    create-follows-to node-B [
+      set shape the-shape
+    ]
+  ]
+end
+
+;----------------- rearrange network -----------
+
+to layout
+  repeat 10 [ layout-spring turtles links 0.2 5 1]
+end
+
 
 
 
@@ -110,105 +223,37 @@ end
 to print-turtle-link-counts
   let cnt 0
   let cnt-2 0
-  let all-links []
+  let all-followers []
   ask turtles [
     let num-links count my-in-links  ; links to all nodes that follow this node
     let num-links-2 count my-out-links ; links to nodes this one follows
     set cnt cnt + num-links
     set cnt-2 cnt-2 + num-links-2
-    set all-links fput num-links all-links
+    set all-followers fput num-links all-followers
     ;print (word "Turtle " who " has " num-links " in links and " num-links-2 " out links")
   ]
   print(word "count in-links  " cnt)
   print(word "count out-links " cnt-2)
   print(word "count links     " count links)
-  set all-links sort all-links
-  print all-links
+  set all-followers sort all-followers
+  print all-followers
 end
 
 to print-influencer-count
   let cnt 0
+  let all-followers []
   ask turtles [
     if influencer? = true [
           set cnt cnt + 1
-          print count my-in-links
+          let num-links count my-in-links
+          set all-followers fput num-links all-followers
        ]
   ]
   print (word "Number of influencers " cnt)
+  set all-followers sort all-followers
+  print all-followers
 end
 
-; -----------------------------------------------------------------------------------------
-; ------------------------------- network -------------------------------------------------
-; -----------------------------------------------------------------------------------------
-
-; ------------------ create lattice ---------------
-to wire-lattice
-  ; iterate over the turtles
-  let n 0
-  while [ n < count turtles ] [
-    ; make edges with the next x neighbors
-    let cnt 1
-    repeat num_connected_neighbors [
-      make-edge turtle n
-     turtle ((n + cnt) mod count turtles)
-     "curve" ;alternativ "default"
-      set cnt cnt + 1
-    ]
-    set n n + 1
-  ]
-end
-
-; ------------------ rewire links ------------------
-to rewire-all
-  ; confirm we have the right amount of turtles, otherwise reinitialize
-  if count turtles != num-nodes [ setup ]
-
-  ; kill the old lattice and create new one
-  ask links [
-    if (random-float 1) < rewiring-probability [
-    ; node-A remains the same
-    let node-A end1
-    ; as long as A is not connected to everybody
-      if [ count link-neighbors ] of end1 < (count turtles - 1) [
-        ; find a node distinct from A and not already a neighbor of "A"
-        let node-B one-of turtles with [ (self != node-A) and (not link-neighbor? node-A) ]
-        ; wire the new edge
-        ask node-A [ create-follows-to node-B ]
-        die ; remove the old edge
-       ]
-     ]
-   ]
-end
-
-
-; ------------------ make edge  ----------------------
-to make-edge [ node-A node-B the-shape]
-  ;ask node-A [
-    ;create-link-with node-B  [
-    ;  set shape the-shape
-    ;]
-  ;]
-   ask node-A [
-    create-follows-to node-B [
-      set shape the-shape
-    ]
-  ]
-end
-
-; ------------------ rewire influencer  ----------------
-to rewire-influencer
-  ask turtles [
-    if influencer? = true [
-      print self
-      print count my-in-links
-      repeat 7 [
-        let node-B one-of turtles with [ (not link-neighbor? self) ]
-        make-edge node-B self "curve"
-      ]
-      print count my-in-links
-    ]
-  ]
-end
 
 ; Copyright 2015 Uri Wilensky.
 ; See Info tab for full copyright and license.
@@ -236,30 +281,30 @@ GRAPHICS-WINDOW
 20
 1
 1
-0
+1
 ticks
 30.0
 
 SLIDER
-120
 10
-307
-43
+120
+165
+153
 num-nodes
 num-nodes
 50
-1000
-100.0
+2000
+200.0
 50
 1
 NIL
 HORIZONTAL
 
 SLIDER
-120
-50
-310
-83
+10
+160
+165
+193
 rewiring-probability
 rewiring-probability
 0
@@ -271,9 +316,9 @@ NIL
 HORIZONTAL
 
 BUTTON
-11
+5
 10
-116
+110
 43
 setup
 setup
@@ -288,34 +333,76 @@ NIL
 1
 
 SLIDER
-120
-95
-310
-128
-num_connected_neighbors
-num_connected_neighbors
+10
+200
+165
+233
+num-connected-neighbors
+num-connected-neighbors
 1
 10
-4.0
+3.0
 1
 1
 NIL
 HORIZONTAL
 
 SLIDER
-120
-140
-310
-173
+10
+240
+165
+273
 influencer-percentage
 influencer-percentage
 0
 0.3
-0.05
+0.03
 0.01
 1
 NIL
 HORIZONTAL
+
+SLIDER
+10
+280
+165
+313
+influencer-link-prob
+influencer-link-prob
+0
+1
+0.25
+0.05
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+15
+95
+165
+113
+Networkvariables
+11
+0.0
+1
+
+BUTTON
+135
+10
+198
+43
+NIL
+go
+T
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
 
 @#$#@#$#@
 ## WHAT IS IT?

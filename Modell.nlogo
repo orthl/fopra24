@@ -2,8 +2,13 @@
 ;cd /P/Uni/Forschungspraktikum/NetLogo
 ;git status
 ;git add .
-;git commit -m "Modell angepasst, neue Funktionen hinzugefügt"
+;git commit -m "Message"
 ;git push
+;-------
+;cd /P/Uni/Forschungspraktikum/NetLogo
+;git status
+;git fetch
+;git pull
 
 globals [
   infinity         ; used to represent the distance between two turtles with no path between them
@@ -13,37 +18,37 @@ turtles-own [
   influencer?              ; Boolean, ob der Agent ein Influencer ist
 
   ;-------------- Intention --------------
-  intention                ;Zusammengesetzte Intention (haltung + sozialeNorm + wahrgVerhaltenskontrolle) - Gewichtung: je 1/3
+  intention                ; Composite intention (attitude + social-norm + perceived-behavioral-control) - Weighting: 1/3 each
 
-  ;----- Haltung-----
-  haltung                  ; Zusammengesetzte Haltung (initialeHaltung + aeussereEinfluesse) - Gewichtung: 50/50
+  ;----- Attitude-----
+  attitude                 ; Composite attitude (initial-attitude + external-influences) - Weighting: 50/50
 
-  initialeHaltung          ; Initiale Haltung des Agenten
+  initial-attitude         ; Initial attitude of the agent
 
-  ;--- aeussereEinfluesse ---
-  aeussereEinfluesse       ;Zusammengesetzte Einflüsse (wirkung + glaubwuerdigkeit) - Gewichtung: 50/50
-  wirkung
-  glaubwuerdigkeit
+  ;--- External Influences ---
+  external-influences      ; Composite influences (effect + credibility) - Weighting: 50/50
+  effect
+  credibility
 
-  ;----- Soziale Norm -----
-  sozialeNorm              ; Zusammengesetzte sozialeNorm (initaleNorm + unmittelbaresUmfeld) - Gewichtung: 50/50
+  ;----- Social Norm -----
+  social-norm              ; Composite social norm (initial-norm + immediate-environment) - Weighting: 50/50
 
-  initialeNorm             ; Initiale soziale Norm des Agenten
-  unmittelbaresUmfeld      ; Umfeld ergibt sich durch die anderen Agenten !TODO Woraus ergeben sich Glaubwürdigkeit und Wirkung
+  initial-norm             ; Initial social norm of the agent
+  immediate-environment    ; Environment is determined by other agents !TODO What determines credibility and effect
 
+  ;----- Perceived Behavioral Control -----
+  perceived-behavioral-control ; Composite perceived behavioral control (self-efficacy + conditions) - Weighting: 50/50
 
-  ;----- wahrgenommene Verhaltenskontrolle -----
-  wahrgVerhaltenskontrolle ; Zusammengesetzte wahrgenommene Verhaltenskontrolle (Selbstwirksamkeit + Rahmenbedingungen) - Gewichtung: 50/50
+  ;--- Self-Efficacy ---
+  self-efficacy            ; Composite self-efficacy (self-confidence + extraversion) - Weighting: 50/50
+  self-confidence          ; Self-confidence of the agent
+  extraversion             ; Extraversion of the agent
 
-  ;--- Selbstwirksamkeit ---
-  selbstwirksamkeit        ; Zusammengesetzte Selbstwirksamkeit (Selbstvertrauen + Extraversion) - Gewichtung: 50/50
-  selbstvertrauen          ; Selbstvertrauen des Agenten
-  extraversion             ; Extraversion des Agenten
+  ;--- Conditions ---
+  conditions               ; Composite conditions (available-time + available-resources) - Weighting: 50/50
+  available-time           ; Available time for the conditions
+  available-resources      ; Available resources for the conditions
 
-  ;--- Rahmenbedingungen ---
-  rahmenbedinungen         ; Zusammengesetzte Rahmenbedingungen (verfügbareZeit + verfügbareRessourcen) - Gewichtung: 50/50
-  verfügbareZeit           ; Verfügbare Zeit für die Rahmenbedingungen
-  verfügbareRessourcen     ; Verfügbare Ressourcen für die Rahmenbedingungen
 ]
 
 links-own [
@@ -83,30 +88,30 @@ to setup
 
 end
 
-; -------------- Initialisierung der Agenten  ---------------------------------------------
+; -------------- Initialization of Agents  ---------------------------------------------
 
 to initialize-agent
-  set initialeHaltung random-float 1                    ; Initiale Haltung zufällig bestimmen
-  set wirkung random-float 1                            ; Wirkung äußerer Einflüsse zufällig bestimmen
-  set glaubwuerdigkeit random-float 1                   ; Glaubwürdigkeit äußerer Einflüsse zufällig bestimmen
-  set aeussereEinfluesse (wirkung + glaubwuerdigkeit) / 2  ; Zusammengesetzte äußere Einflüsse berechnen
-  set haltung (initialeHaltung + aeussereEinfluesse) / 2  ; Zusammengesetzte Haltung berechnen
+  set initial-attitude random-float 1                      ; Determine initial attitude randomly
+  set effect random-float 1                                ; Determine effect of external influences randomly
+  set credibility random-float 1                           ; Determine credibility of external influences randomly
+  set external-influences (effect + credibility) / 2       ; Calculate composite external influences
+  set attitude (initial-attitude + external-influences) / 2 ; Calculate composite attitude
 
-  set initialeNorm random-float 1                       ; Initiale Norm zufällig bestimmen
-  set unmittelbaresUmfeld random-float 1                ; Unmittelbares Umfeld zufällig bestimmen
-  set sozialeNorm (initialeNorm + unmittelbaresUmfeld) / 2  ; Zusammengesetzte soziale Norm berechnen
+  set initial-norm random-float 1                          ; Determine initial norm randomly
+  set immediate-environment random-float 1                 ; Determine immediate environment randomly
+  set social-norm (initial-norm + immediate-environment) / 2 ; Calculate composite social norm
 
-  set selbstvertrauen random-float 1                    ; Selbstvertrauen zufällig bestimmen
-  set extraversion random-float 1                       ; Extraversion zufällig bestimmen
-  set selbstwirksamkeit (selbstvertrauen + extraversion) / 2  ; Zusammengesetzte Selbstwirksamkeit berechnen
+  set self-confidence random-float 1                       ; Determine self-confidence randomly
+  set extraversion random-float 1                          ; Determine extraversion randomly
+  set self-efficacy (self-confidence + extraversion) / 2   ; Calculate composite self-efficacy
 
-  set verfügbareZeit random-float 1                     ; Verfügbare Zeit zufällig bestimmen
-  set verfügbareRessourcen random-float 1               ; Verfügbare Ressourcen zufällig bestimmen
-  set rahmenbedinungen (verfügbareZeit + verfügbareRessourcen) / 2  ; Zusammengesetzte Rahmenbedingungen berechnen
+  set available-time random-float 1                        ; Determine available time randomly
+  set available-resources random-float 1                   ; Determine available resources randomly
+  set conditions (available-time + available-resources) / 2 ; Calculate composite conditions
 
-  set wahrgVerhaltenskontrolle (selbstwirksamkeit + rahmenbedinungen) / 2  ; Zusammengesetzte wahrgenommene Verhaltenskontrolle berechnen
+  set perceived-behavioral-control (self-efficacy + conditions) / 2 ; Calculate composite perceived behavioral control
 
-  set intention (haltung + sozialeNorm + wahrgVerhaltenskontrolle) / 3  ; Zusammengesetzte Intention berechnen
+  set intention (attitude + social-norm + perceived-behavioral-control) / 3 ; Calculate composite intention
 end
 
 
