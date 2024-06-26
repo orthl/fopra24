@@ -1,0 +1,141 @@
+// tbd eig sind Reposts wie eigene Posts zu behandeln (eigene Kommentare, eigene Likes, ...)
+
+
+// hier wird Intention behalndelt, als ob sie nur 2 Ausprägungen hat, um Vergleich unter Agent und Post einfacher zu machen 
+// einflussInteraktionenPos: Aggregation aller Intentionen mit Posts der gleichen Intention, wodurch die Haltung verstärkt wird
+// einflussInteraktionenNeg: Aggregation aller Intentionen mit Posts der entgegengesetzten Intention, wodurch die Haltung geschwächt
+// mit ein paar Anpassungen (aber auch paar Abfragen mehr, könnte einfach mit Implementiert werden, dass SN bei Sachen der anderen Intention stärker beeinflusst wird
+
+// Der Post bleibt Agent um Kommentare und # Likes zu speichern
+// dazu eigene Link breed, durch die die Verbreitung des Posts gezeigt wird (Own Variablen Influencer Glaubwürdigkeit und Glaubwürdigkeit des Agenten, der Post geteilt hat (gewichtet))
+
+method PostInteraktion
+
+	//agent read Comments
+	if Zufallszahl > v * wahrgVerh then
+		
+		// hier mal schauen, das müsste noch iwie skaliert werden
+		self.setSNFactor(self.getSNFactor + Post.getCommentAverage)
+		self.PostGlaubwürdigkeit = x * ((Post.getCommentAverage + PostLink.getGlaubwürdigkeit) / 2)
+
+		if(Post.Intention == this.Intention) then	
+			einflussInteraktionenPos = einflussInteraktionenPos + x (z.B. 0,3)
+		end
+
+		if(Post.Intention != this.Intention) then
+			einflussInteraktionenNeg = einflussInteraktionenNeg + x (z.B. 0,3)
+		end
+
+	else
+		self.PostGlaubwürdigkeit = PostLink.getGlaubwürdigkeit
+	end
+
+	//agent liked Post
+	if Zufallszahl > l * wahrgVerh && Post.Intention == this.Intention && self.PostGlaubwürdigkeit > x then
+
+		einflussInteraktionenPos = einflussInteraktionenPos + x (z.B. 0,2)
+		Post.setLikes(Post.getLikes++)
+	else
+		einflussInteraktionenNeg = einflussInteraktionenNeg + x (z.B. 0,2)
+	end
+
+
+	if Zufallszahl > k * wahrgVerh then
+		//agent comment Post
+
+		if(Post.Intention == this.Intention) then
+			Post.setCommentAverage(Post.getCommentAverage + 1)
+			einflussInteraktionenPos = einflussInteraktionenPos + x (z.B. 0,4)
+		end
+
+		if(Post.Intention != this.Intention) then
+			Post.setCommentAverage(Post.getCommentAverage - 1)
+			einflussInteraktionenNeg = einflussInteraktionenNeg + x (z.B. 0,4)
+		end
+
+
+	if Zufallszahl > t * wahrgVerh then
+		//agent shared Post
+
+		if(Post.Intention == this.Intention) then
+			einflussInteraktionenPos = einflussInteraktionenPos + x (z.B. 0,5)
+			PostLink.setGlaubwürdigkeit(<postLink.getGlaubwürdigkeit + x)
+		end
+
+		// ergibt es Sinn, hier auch den Einfluss einer gegnerischen Intention zu beachten?
+		// von der Motivation des Teilens her: der Agent würde teilen, wenn er der gleichen Meinung ist 
+		// oder eine entgegengesetzte Meinung mit einem Kommentar außer Kraft setzen will
+		// würde er auch Posts teilen, die eine andere Intention haben, wenn z.B. er durch besondere Glaubwürdigleit überzeugt wurde?
+
+		if(Post.Intention != this.Intention) then 
+			einflussInteraktionenNeg = einflussInteraktionenNeg + x (z.B. 0,5)
+			PostLink.setGlaubwürdigkeit(getGlaubwürdigkeit - x)
+		end
+
+
+	methode.AnapssungSozialeNorm()
+	methode.AnpassungHaltung()
+
+	methode.AnapssungNetzwerk()
+end
+
+method AnapssungSozialeNorm
+	self.setSNFactor(self.getSNFactor * PostLink.getIntention * (Post.getIntention/2))
+	self.setSN = self.getSN * self.getSNFactor
+	// hier vlt auch noch andere Aspekte berücksichtigen, wie wenn ein anderer Agent den von dem aktuellen Agenten geteilten Post sieht
+end
+
+method AnpassungHaltung
+	if einflussInteraktionenPos > einflussInteraktionenNeg then
+		// je nach Höhe des Werts die Haltung Anapssung (je größer, desto mehr wird Agents Haltung verstärkt)
+	else
+		// je nach Höhe des Werts die Haltung Anapssung (je größer, desto mehr geht Haltung in die andere Richtung)
+	end
+end
+
+method AnapssungNetzwerk
+	// wenn Agent dem Influencernoch nicht folgt und Intention vom Post gleich der eigenen ist, besteht Chance von x Prozent, dass er I folgt
+	if(Post.getInfluencer != self.out-links && Post.Intention == self.Intention) then
+		if random-float 1 >= x
+			create link from agent to influencer 
+	end
+	
+	// wenn Intention des Posts anders als eigene ist, entfolgt Agent mit x% WK dem Influencer
+	if(Post.getInfluencer == self.out-links && Post.Intention != self.Intention) then
+		if random 1 >= x
+			ask link [die]
+	end
+
+end
+
+
+-------------------------------------------------------------------
+
+	
+aktuellen Agenten
+		Einfluss Interaktionen
+	Haltung
+		Äußere Einflüsse
+			Wirkung
+			Glaubwürdigkeit
+	SozialeNorm
+		UnmittelbaresUmfeld
+	Netzwerk
+		Agenten entfolgen
+		Agenten folgen
+	
+		
+Post
+	Likes von Agent x (list)
+	Kommentar von Agent x (list)
+	Geteilt von Agent x (list)
+
+
+verlinkten Agenten
+	Agent sieht Post
+		if shared 100%
+		else 50%
+	
+Glaubwürdigkeit = Zufallswert für jeden Agenten z.B. aufaddieren und teilen durch Anzahl der Agenten
+Wirkung = Wirkung des gesamtes Posts z.B. über die Verteilung der Kommentare (positiv / negativ)
+UnmittelbaresUmfeld = Intentionen der anderen Agenten auf Postebene (nicht verlinkte Agenten) 
