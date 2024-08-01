@@ -79,6 +79,9 @@ to setup
   ; initialize nodes
   initialize-nodes
 
+  ; Distribute posts
+  distribute-posts
+
   ask links [ set color gray ]
   print-turtle-link-counts
   print-influencer-count
@@ -255,9 +258,81 @@ to layout
 end
 
 
+; -----------------------------------------------------------------------------------------
+; ------------------------------- post distribution ---------------------------------------
+; -----------------------------------------------------------------------------------------
+
+to distribute-posts
+  let mega-influencers []
+  let macro-influencers []
+  let micro-influencers []
+  let influencer-list []
+
+  ; extract influencers with follower count
+  ask turtles [
+    if influencer? = true [
+      let num-links count my-in-links  ; links to all nodes that follow this node
+      set influencer-list lput (list who num-links) influencer-list
+    ]
+  ]
+
+  ; sort list based on in links
+  set influencer-list sort-by [[a b] -> item 1 a < item 1 b] influencer-list
+
+  ; cut influencer list in groups
+  set micro-influencers (sublist influencer-list 0 3)
+  set macro-influencers (sublist influencer-list 3 7)
+  set mega-influencers (sublist influencer-list 7 10)
+
+  ; print groups
+  print (word "Influencer List: " influencer-list)
+  print (word "Mega-Influencers: " mega-influencers)
+  print (word "Macro-Influencers: " macro-influencers)
+  print (word "Micro-Influencers: " micro-influencers)
+
+  ; --------- generate Posts -----------------
+  foreach mega-influencers [ turtle-id ->
+    let actual-id item 0 turtle-id
+    ask turtle actual-id[
+      repeat 4[
+        create-post self
+      ]
+    ]
+  ]
+
+   foreach macro-influencers [ turtle-id ->
+    let actual-id item 0 turtle-id
+    ask turtle actual-id[
+      repeat 2[
+        create-post self
+      ]
+    ]
+  ]
+
+   foreach micro-influencers [ turtle-id ->
+    let actual-id item 0 turtle-id
+    ask turtle actual-id[
+      repeat 2[
+        create-post self
+      ]
+    ]
+  ]
 
 
-; -------------- report -----------------------------------------------------------------
+end
+
+to create-post [influencer]
+  print (who)
+
+end
+
+
+
+
+
+; -----------------------------------------------------------------------------------------
+; ------------------------------- report ---------------------------------------
+; -----------------------------------------------------------------------------------------
 
 to print-turtle-link-counts
   let cnt 0
@@ -868,7 +943,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.3.0
+NetLogo 6.4.0
 @#$#@#$#@
 setup
 repeat 5 [rewire-one]
