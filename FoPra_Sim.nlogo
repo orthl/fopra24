@@ -322,8 +322,34 @@ to distribute-posts
 end
 
 to create-post [influencer]
-  print (who)
+  let my-incoming-links[] ;var definition
 
+  ask turtle who [
+    hatch-posts 1[ ;influencer erstellt post
+      set color red
+      set size 2
+      setxy xcor ycor
+
+      set origin-agent-id [who] of influencer ;
+      set likes 0  ; number of likes
+      set comment-average 0  ; average number of comments
+      set reposts 0  ; number of reposts
+      set intention random-float 1  ; Random intention value
+      set post-credibility random-float 1  ; Random credibility value
+      set relevance random-float 1  ; Random relevance value
+    ]
+
+
+    ask my-in-links [ ; ask for all links to the influencer
+    set my-incoming-links lput end1 my-incoming-links ; add all follower ids to list
+    ]
+    ;print(my-incoming-links) ; print all follower ids, not sorted
+
+    foreach my-incoming-links [ [num] -> ; create link from every influencer to follower ???? don't knwo if it works
+      create-posted-to num
+    ]
+
+  ]
 end
 
 
