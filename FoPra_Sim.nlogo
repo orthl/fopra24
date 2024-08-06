@@ -47,6 +47,7 @@ breed [posts post]
 posts-own [
   likes
   comment-average
+  comments
   reposts
   origin-agent-id
   intention
@@ -79,18 +80,25 @@ to setup
   ; initialize nodes
   initialize-nodes
 
-  ; Distribute posts
-  distribute-posts
-
-  ask links [ set color gray ]
-  print-turtle-link-counts
+  ; ask posts [die]
   print-influencer-count
-  print-initial-attitudes
+
+  print-turtle-link-counts
+  ;print-initial-attitudes
 
 end
 
+to end-simulation
+  user-message "Simulation wird beendet."
+  stop
+end
+
 to go
+  ask posts [die]
+  ask links [hide-link]
   print (word "go")
+  ; Distribute posts
+  let-influencer-post
   tick
 end
 
@@ -117,7 +125,7 @@ to initialize-nodes
     set credibility random-float 1                           ; Determine credibility of external influences randomly
     set attitude initial-attitude
 
-    set initial-norm 0                                       ; Determine initial norm randomly
+    set initial-norm random-float 1                                      ; Determine initial norm randomly
     set social-norm initial-norm                             ; no immediate env yet, so initial norm
 
     set self-efficacy random-float 1                         ; Determine self-efficacy randomly
@@ -262,7 +270,7 @@ end
 ; ------------------------------- post distribution ---------------------------------------
 ; -----------------------------------------------------------------------------------------
 
-to distribute-posts
+to let-influencer-post
   let mega-influencers []
   let macro-influencers []
   let micro-influencers []
@@ -275,6 +283,7 @@ to distribute-posts
       set influencer-list lput (list who num-links) influencer-list
     ]
   ]
+
 
   ; sort list based on in links
   set influencer-list sort-by [[a b] -> item 1 a < item 1 b] influencer-list
@@ -322,39 +331,209 @@ to distribute-posts
 end
 
 to create-post [influencer]
+  let interaction-probability 0.8
   let my-incoming-links[] ;var definition
+  ask my-in-links [ ; ask for all links to the influencer
+    set my-incoming-links lput end1 my-incoming-links ; add all follower ids to list
+  ]
 
-  ask turtle who [
+  ask influencer [
     hatch-posts 1[ ;influencer erstellt post
       set color red
-      set size 2
-      setxy xcor ycor
+      set size 0.5
+      setxy (xcor - random 2) (ycor - random 2)
 
       set origin-agent-id [who] of influencer ;
       set likes 0  ; number of likes
       set comment-average 0  ; average number of comments
+      set comments 0 ;number of comments
       set reposts 0  ; number of reposts
-      set intention random-float 1  ; Random intention value
-      set post-credibility random-float 1  ; Random credibility value
+      set intention intent  ; Random intention value
+      set post-credibility credibility ; Random credibility value
       set relevance random-float 1  ; Random relevance value
-    ]
 
-
-    ask my-in-links [ ; ask for all links to the influencer
-    set my-incoming-links lput end1 my-incoming-links ; add all follower ids to list
-    ]
-    ;print(my-incoming-links) ; print all follower ids, not sorted
-
-    foreach my-incoming-links [ [num] -> ; create link from every influencer to follower ???? don't knwo if it works
-      create-posted-to num
+      distribute-post influencer who
     ]
 
   ]
 end
 
+to distribute-post [outgoing-turtle post-id]
+  let interaction-probability 0.8
+  let my-incoming-links[] ;var definition
+
+  ask outgoing-turtle [
+    ask my-in-links [set my-incoming-links lput end1 my-incoming-links] ; add all follower ids to list
+  ]
+
+  ask post post-id [
+    foreach my-incoming-links [ [num] -> ; create link from follower to post
+      let post? false
+      ask num [set post? breed = posts]
+      if (num != self) and (out-link-to num = nobody) and (post? = false)[
+        create-posted-to num
+        ask num [
+          if influencer? != true [set color magenta]
+        ]
+        ;print(word "-------------------------incoming links -----------")
+        ;print(length my-incoming-links)
+        ;print(word "------------------------- my out links -----------")
+        ;print my-out-links
+        let tmp post-credibility
+        ask my-out-links [
+          set link-credibility tmp
+        ]
+
+        ; if agent hasnt already seen post, it interacts with certain prob with it
+        if (out-link-to num != nobody) and (random-float 1) < interaction-probability [post-interaction num who]
+      ]
+    ]
+  ]
+
+end
 
 
+; -----------------------------------------------------------------------------------------
+; ------------------------------- post interaction ----------------------------------------
+; -----------------------------------------------------------------------------------------
 
+to post-interaction [current-turtle post-id]
+  ; soo high, because values are getting multiplicated with perceived behavioral control
+  let reading-prob 0.8
+  let liking-prob 1.0
+  let commenting-prob 0.5
+  let sharing-prob 0.3
+  let interaction-impact 0
+  let social-norm-factor 0
+  let sim-intentions? compare-intentions? current-turtle post-id
+  let follow-prob 0.7
+  let unfollow-prob 0.5
+  let interacted? false
+
+
+  ; post values
+  let post-intention 0
+  let current-comment-average 0
+  let current-comments 0
+  let current-likes 0
+  let current-credibility 0
+  let current-origin 0
+  ask post post-id [
+    set post-intention intention
+    set current-comment-average comment-average
+    set current-comments comments
+    set current-likes likes
+    set current-credibility credibility
+    set current-origin origin-agent-id
+  ]
+
+  ; agent reads comments of post
+  if (random-float 1) < (reading-prob * perceived-behavioral-control) [
+    if current-comments != 0 [set social-norm-factor (social-norm-factor + (current-comment-average / current-comments))]
+    ask current-turtle [
+      ask link-with post post-id [ set link-credibility ((link-credibility + current-comment-average) / 2)]
+    ]
+
+    ifelse sim-intentions?
+      [set interaction-impact interaction-impact + 0.1] ; Todo: hier evtl anpassen
+      [set interaction-impact interaction-impact - 0.1] ; Todo: hier evtl anpassen
+
+    set interacted? true
+  ]
+
+  ; agent likes post
+  if (random-float 1) < (liking-prob * perceived-behavioral-control) and sim-intentions? and current-credibility > 0.4[   ; todo hier link-credibiity
+    set interaction-impact interaction-impact + 0.05 ; Todo: hier die 0.3 evtl anpassen
+    ask post post-id [
+      set likes (likes + 1)
+    ]
+
+    set interacted? true
+  ]
+
+  ; agent comments post
+  if (random-float 1) < (commenting-prob * perceived-behavioral-control) [
+    ifelse sim-intentions?
+    [
+      set interaction-impact interaction-impact + 0.15 ; Todo: hier Wert evtl anpassen
+      ask post post-id [set comment-average (comment-average + 1) set comments (comments + 1)]
+      set current-comments (current-comments + 1)
+   ][
+      set interaction-impact interaction-impact - 0.15 ; Todo: hier Wert evtl anpassen
+      ask post post-id [set comment-average (comment-average - 1) set comments (comments + 1)]
+      set current-comments (current-comments + 1)
+    ]
+
+    set interacted? true
+  ]
+
+  ; agent shares post
+  if (random-float 1) < (sharing-prob * perceived-behavioral-control) [
+    ifelse sim-intentions?
+    [
+      set interaction-impact interaction-impact + 0.2 ; Todo: hier Wert evtl anpassen
+      ask post post-id  [set reposts (reposts + 1)]]
+    [
+      set interaction-impact interaction-impact - 0.2 ; Todo: hier Wert evtl anpassen
+      ask post post-id [ set reposts (reposts + 1)]
+    ]
+
+    ; todo neuen Post erstellen und verteilen mit Glaubwürdigkeit = (2 * self.getGlaubwürdigkeit + Post.getGlaubwürdigkeit) / 3
+    				    ;Intention = (2 * self.getIntention + Post.getIntention) / 3
+        				;ursprungsPostID = Post.getID
+
+    set interacted? true
+  ]
+
+  ; adjustment of social norm, attitide, intention and network
+  ask current-turtle [
+    ; social norm Todo_ nochmal genauer schauen
+    ;print(word "---------------------------------------------------------")
+    ;print(word "old factor: " social-norm-factor " plus " abs(intent - post-intention))
+    set social-norm-factor (social-norm-factor + abs(intent - post-intention))
+    ;print(word "new factor: " social-norm-factor)
+    ;print(word "old social norm: " social-norm)
+    let dist-sn abs(social-norm-factor - social-norm)
+    ;set social-norm ((dist-sn * social-norm-factor) + social-norm)
+    ;print(word "new social norm: " social-norm " dist: " dist-sn)
+
+    ; attitude
+    let dist-a abs(interaction-impact - attitude)
+    set attitude ((dist-a * interaction-impact) + attitude)
+
+    ; intention
+    set intent (attitude + social-norm + perceived-behavioral-control) / 3
+
+    ; network
+    ; if agent doesnt already follows influencer and if the intentions are similar, agent follows influencer with a certain probability
+    if ((random-float 1) < follow-prob) and (out-link-to turtle current-origin = nobody and sim-intentions?) and (current-origin != who)  [
+      create-followed-to turtle current-origin
+    ]
+
+    ; if agent follows influencer but the intentions are not (no longer) the same, agent unfollows influencer with certain probability
+    if ((random-float 1) < unfollow-prob) and (out-link-to turtle current-origin != nobody and not(sim-intentions?))  [
+      ask out-link-to turtle current-origin [die]
+    ]
+
+    ;print(word "intention: " intent " attitide: " attitude " interaction-impact: " interaction-impact " dist: " dist " SN-Factor: " social-norm-factor " comment-average: " current-comment-average " same intention?: " sim-intentions?)
+  ]
+
+  if interacted? [
+    distribute-post current-turtle post-id
+  ]
+  ;toDo if interacted? [verteile den Post weiter an die Follower der Turtle]
+
+end
+
+; This method returns true if the turtles intention is close to the posts intention (close if it differs 0.2 or less)
+to-report compare-intentions? [turtle-id post-id]
+  let turtle-int 0
+  let post-int 0
+  ask turtle-id [set turtle-int intent]
+  ask post post-id [set post-int intention]
+
+  report abs (turtle-int - post-int) <= 0.2
+end
 
 ; -----------------------------------------------------------------------------------------
 ; ------------------------------- report ---------------------------------------
@@ -387,7 +566,8 @@ to print-influencer-count
           set cnt cnt + 1
           let num-links count my-in-links
           set all-followers fput num-links all-followers
-       ]
+          ;print(word cnt " and counted turtle " who " and influencer?: " influencer?)
+    ]
   ]
   print (word "Number of influencers " cnt)
   set all-followers sort all-followers
@@ -440,7 +620,7 @@ GRAPHICS-WINDOW
 1
 1
 ticks
-30.0
+60.0
 
 SLIDER
 10
@@ -498,7 +678,7 @@ num-connected-neighbors
 num-connected-neighbors
 1
 10
-3.0
+4.0
 1
 1
 NIL
@@ -551,7 +731,7 @@ BUTTON
 43
 NIL
 go
-T
+NIL
 1
 T
 OBSERVER
@@ -562,12 +742,29 @@ NIL
 1
 
 BUTTON
-15
+10
 50
-78
+110
 83
 NIL
 test
+NIL
+1
+T
+OBSERVER
+NIL
+NIL
+NIL
+NIL
+1
+
+BUTTON
+125
+50
+237
+85
+NIL
+end-simulation
 NIL
 1
 T
@@ -969,7 +1166,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.4.0
+NetLogo 6.3.0
 @#$#@#$#@
 setup
 repeat 5 [rewire-one]
