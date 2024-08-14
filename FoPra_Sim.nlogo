@@ -152,8 +152,7 @@ to initialize-nodes
       set social-norm 1
     ]
 
-    ; TODO: Gewichtung recherchieren
-    set intent (attitude + social-norm + perceived-behavioral-control) / 3 ; Calculate composite intention
+    set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) * (1 - 0.3) + 0.3 * social-norm ; Calculate composite intention
 
   ]
 end
@@ -515,7 +514,7 @@ to post-interaction [current-turtle post-id]
   ]
 
   ; save intention of agent locally and adjust social-norm based on intention of post
-  let post-impact 0.002
+  let post-impact 0.02
   let current-intent 0
   let turtle-credibility 0
   ask current-turtle [
@@ -529,7 +528,7 @@ to post-interaction [current-turtle post-id]
 
   ; ------------------  agent reads comments of post
   if (random-float 1) < (reading-prob * perceived-behavioral-control) [
-    let comment-impact 0.001
+    let comment-impact 0.01
     ask current-turtle [
 
       ;if there are comments, calculate the average intention
@@ -633,7 +632,10 @@ to recalculate-intention [current-turtle interaction-impact post-intention curre
 
 
     ; --------------------------- intention
-    set intent (attitude + social-norm + perceived-behavioral-control) / 3  ;todo Gewichtung anpassen
+    ; recalculate intention, social norm is only applied to non-influencer
+    ifelse influencer? = true
+      [set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) ]
+      [set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) * (1 - 0.3) + 0.3 * social-norm ]
     ;unify-intent self
 
 
@@ -905,11 +907,11 @@ NIL
 1
 
 PLOT
-5
-100
-205
-250
-plot 1
+10
+95
+310
+245
+Adoption rates
 NIL
 NIL
 0.0
@@ -917,7 +919,7 @@ NIL
 0.0
 1.0
 true
-false
+true
 "" ""
 PENS
 "non-adopter" 1.0 0 -2674135 true "" "plot (count turtles with [intent <= 0.7]) / num-nodes"
