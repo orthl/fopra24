@@ -24,7 +24,7 @@ extensions [array table]
 globals [
   all-influencer ; list of all influencer
   all-nodes ; list of all nodes
-  to-repost
+  ;growth-rate
 ]
 
 turtles-own [
@@ -40,7 +40,7 @@ turtles-own [
   social-norm
   initial-norm
 
-  perceived-behavioral-control ; Composite perceived behavioral control (self-efficacy + conditions) - Weighting: 50/50
+  perceived-behavioral-control
   self-efficacy
   conditions
 
@@ -56,6 +56,9 @@ posts-own [
   origin-agent-id
   intention
   post-credibility
+  interactions
+  impressions
+  engagement-rate
 ]
 
 all-posts-own [
@@ -83,48 +86,50 @@ to setup
   ; initialize nodes
   initialize-nodes
 
-  ; ask posts [die]
-  print-influencer-count
-
-  print-turtle-link-counts
+  ;print-adoption-rates
+  ;print-influencer-count
+  ;print-turtle-link-counts
   ;print-initial-attitudes
 
 end
 
-to end-simulation
-  user-message "Simulation wird beendet."
-  stop
-end
-
 to go
-  set to-repost []
+  ;if ((count turtles with [intent > 0.7]) / num-nodes) > 0.99  [stop] ; todo abbruchkriterium
   ask posts [die]
   ask links [hide-link]
-  print (word "go")
+
+  ;let follower-count-old 0
+  ;let follower-count-new 0
+
+  ;ask turtles with [influencer? = true] [
+  ;  let num-followers count my-in-links
+  ;  set follower-count-old follower-count-old + num-followers
+  ;]
 
   ; Distribute posts
   let-influencer-post
 
-  ; create reposts and distribute them
-  show length to-repost
+  ;ask turtles with [influencer? = true] [
+  ;  let num-followers count my-in-links
+  ;  set follower-count-new follower-count-new + num-followers
+  ;]
 
-  create-reposts
+  ;set growth-rate ((follower-count-new - follower-count-old) / follower-count-old) * 100
+  ;print growth-rate
+
+  ask posts [
+    ifelse impressions != 0
+      [set engagement-rate (interactions / impressions)]
+      [set engagement-rate 0]
+  ]
 
   tick
 end
 
 to test
-  clear-all
-  let array [
-    [1 2 3]
-    [4 5 6]
-    [7 8 9]
-  ]  ;; Beispiel: Ein 3x3 "Array" mit vorgegebenen Werten
-
-  print item 0 (item 1 array)
+  print ceiling ((ln num-nodes) / 2)
 
 end
-
 
 ; -----------------------------------------------------------------------------------------
 ; ------------------------- Initialization of Agents --------------------------------------
@@ -199,6 +204,7 @@ to create-nodes
   layout-circle (sort turtles) max-pxcor - 1
 
   ; pick x influencers and put them into global list
+  let influencer-percentage 0.025
   ask n-of (influencer-percentage * num-nodes) turtles [
     set influencer? true
     set all-influencer fput self all-influencer
@@ -227,6 +233,7 @@ to wire-lattice
 end
 
 to-report random-num-connected-neighbors
+  let num-connected-neighbors ceiling ((ln num-nodes) / 2)
   let lower-limit num-connected-neighbors / 2
   let upper-limit num-connected-neighbors + lower-limit
   report round (random-float lower-limit + random-float upper-limit)
@@ -241,7 +248,7 @@ to rewire
       let node-A end1
 
       ; probalbility that the node should be rewired to an influencer or not
-      ifelse (random-float 1) > influencer-link-prob [
+      ifelse (random-float 1) <= 0.75 [
 
         ; if the link should not be rewired to an influencer,
         ; find a node distinct from A, which has no link to A and is no influencer, link those two nodes an delete the old one
@@ -334,11 +341,11 @@ to let-influencer-post
   ]
 
   ; print groups
-  print (word "Influencer List: " influencer-list)
-  print (word "Mega-Influencers: " mega-influencers)
-  print (word "Macro-Influencers: " macro-influencers)
-  print (word "Micro-Influencers: " micro-influencers)
-  print (word "Regular-Influencers: " regular-influencers)
+  ;print (word "Influencer List: " influencer-list)
+  ;print (word "Mega-Influencers: " mega-influencers)
+  ;print (word "Macro-Influencers: " macro-influencers)
+  ;print (word "Micro-Influencers: " micro-influencers)
+  ;print (word "Regular-Influencers: " regular-influencers)
 
   ; --------- generate Posts -----------------
   foreach mega-influencers [ turtle-id ->
@@ -383,7 +390,7 @@ end
 ;----------------- create the posts -----------
 
 to create-post [current-turtle new-intent new-credibility]
-  let interaction-probability 0.8
+
   let my-incoming-links[]
   ; ask for all links to the influencer
   ask my-in-links [
@@ -414,7 +421,7 @@ end
 ;----------------- distribute post in the network -----------
 
 to distribute-post [outgoing-turtle post-id]
-  let interaction-probability 0.8
+
   let my-incoming-links[] ;var definition
 
   ; collect follower of a turtle
@@ -445,38 +452,11 @@ to distribute-post [outgoing-turtle post-id]
         ]
 
         ; if agent hasnt already seen post, it interacts with certain prob with it
-        if (out-link-to num != nobody) and ((random-float 1) < interaction-probability) and (new-link?)  [post-interaction num who]
+        if (out-link-to num != nobody) and ((random-float 1) <= perceived-behavioral-control) and (new-link?)  [post-interaction num who]
       ]
     ]
   ]
 
-end
-
-to create-reposts
-
-  foreach to-repost [
-    [repost] ->
-    let current-turtle item 0 repost
-    let post-id item 1 repost
-
-    ; get intention and credibility of reposting agent
-    let current-intent 0
-    let current-credibility 0
-    ask current-turtle [
-      set current-intent intent
-      set current-credibility credibility
-    ]
-
-    ; get intention and credibility of post which is getting to be reposted
-    let post-intention 0
-    let current-post-credibility 0
-    ask post post-id [
-      set post-intention intention
-      set current-post-credibility post-credibility
-    ]
-
-    ;ask current-turtle [create-post current-turtle ((2 * current-intent + post-intention) / 3) ((2 * current-credibility + current-post-credibility) / 3)]
-  ]
 end
 
 
@@ -487,14 +467,12 @@ end
 to post-interaction [current-turtle post-id]
 
   ; set probabilities and other vars (probs so high, because values are getting multiplicated with perceived behavioral control)
-  let reading-prob 0.8
-  let liking-prob 1.0
-  let commenting-prob 0.5
-  let sharing-prob 0.2
+
+  let reading-prob 0.7
   let interaction-impact 0
   let sim-intentions? compare-intentions? current-turtle post-id
   let interacted? false
-  let post-distr-prob 0.7
+  let post-distr-prob 0.7   ;toDo
 
 
   ; save post values locally
@@ -514,31 +492,41 @@ to post-interaction [current-turtle post-id]
   ]
 
   ; save intention of agent locally and adjust social-norm based on intention of post
-  let post-impact 0.02
+  let post-impact 0.1
   let current-intent 0
   let turtle-credibility 0
   ask current-turtle [
     set current-intent intent
     set turtle-credibility credibility
+
+    if influencer? = 0 [set social-norm (social-norm + post-impact * (post-intention - social-norm))]
+
     ; if intention of post is smaller than agents, it gets substracted from social norm, otherwise it gets added
-    ifelse post-intention < intent
-      [set social-norm (social-norm - (post-impact * post-intention))]
-      [set social-norm (social-norm + (post-impact * post-intention))]
+    ;ifelse post-intention < intent
+    ;  [set social-norm (social-norm - (post-impact * post-intention))]
+    ;  [set social-norm (social-norm + (post-impact * post-intention))]
   ]
+  set interaction-impact interaction-impact + 0.25
+
+  ask post post-id [set impressions impressions + 1]
+
 
   ; ------------------  agent reads comments of post
-  if (random-float 1) < (reading-prob * perceived-behavioral-control) [
-    let comment-impact 0.01
+  if (random-float 1) < reading-prob  [
+    let comment-impact 0.05
     ask current-turtle [
 
       ;if there are comments, calculate the average intention
       if current-comments != 0 [
       let comment-intent (current-comment-average / current-comments)
 
+        ; adjust the social norm
+        if influencer? = 0 [set social-norm (social-norm + comment-impact * (comment-intent - social-norm))]
+
         ; adjust the social norm based on it (substract if lower than agents intention, add if higher)
-        ifelse (comment-intent < intent)
-          [set social-norm (social-norm - comment-impact * comment-intent)]
-          [set social-norm (social-norm + comment-impact * comment-intent)]
+        ;ifelse (comment-intent < intent)
+        ;  [set social-norm (social-norm - comment-impact * comment-intent)]
+        ;  [set social-norm (social-norm + comment-impact * comment-intent)]
       ]
 
       ask link-with post post-id [ set link-credibility ((link-credibility + current-comment-average) / 2)]
@@ -546,36 +534,36 @@ to post-interaction [current-turtle post-id]
 
     ; increase interaction impact if the intentions are similar, decrease otherwise
     ifelse sim-intentions?
-      [set interaction-impact interaction-impact + 0.1] ; Todo: hier evtl anpassen
-      [set interaction-impact interaction-impact - 0.1] ; Todo: hier evtl anpassen
-
-    set interacted? true
+      [set interaction-impact interaction-impact + 0.15] ; Todo: hier evtl anpassen
+      [set interaction-impact interaction-impact - 0.15] ; Todo: hier evtl anpassen
   ]
 
   ; ------------------  agent likes post
-  if (random-float 1) < (liking-prob * perceived-behavioral-control) and sim-intentions? and current-credibility > 0.4 [   ; todo hier link-credibiity
-    set interaction-impact interaction-impact + 0.06 ; Todo: hier evtl anpassen
+  if (random-float 1) < liking-prob [
+    set interaction-impact interaction-impact + 0.1 ; Todo: hier evtl anpassen
     ask post post-id [
       set likes (likes + 1)
     ]
 
     set interacted? true
+    ask post post-id [set interactions interactions + 1]
   ]
 
   ; ------------------  agent comments post
-  if (random-float 1) < (commenting-prob * perceived-behavioral-control) [
+  if (random-float 1) < commenting-prob [
 
     ; add the intention of agent to the counter and increase the comment count
     ; if the intention of post and agent is similar, increase interaction impact, otherwise decrease it
     ifelse sim-intentions?
     [
-      set interaction-impact interaction-impact + 0.12 ; Todo: hier Wert evtl anpassen
+      set interaction-impact interaction-impact + 0.2 ; Todo: hier Wert evtl anpassen
       ask post post-id [
         set comment-average (comment-average + current-intent)
-        set comments (comments + 1)]
+        set comments (comments + 1)
+      ]
       set current-comments (current-comments + 1)
    ][
-      set interaction-impact interaction-impact - 0.12 ; Todo: hier Wert evtl anpassen
+      set interaction-impact interaction-impact - 0.2 ; Todo: hier Wert evtl anpassen
       ask post post-id [
         set comment-average (comment-average + current-intent)
         set comments (comments + 1)
@@ -584,26 +572,27 @@ to post-interaction [current-turtle post-id]
     ]
 
     set interacted? true
+    ask post post-id [set interactions interactions + 1]
   ]
 
   ; -----------------------  agent shares post
-  if (random-float 1) < (sharing-prob * perceived-behavioral-control) [
+  if (random-float 1) < (sharing-prob) [
 
     ; in- or decrease interaction impact based on intentions and increment repost counter
     ifelse sim-intentions?
     [
-      set interaction-impact interaction-impact + 0.14 ; Todo: hier Wert evtl anpassen
+      set interaction-impact interaction-impact + 0.3 ; Todo: hier Wert evtl anpassen
       ask post post-id  [set reposts (reposts + 1)]]
     [
-      set interaction-impact interaction-impact - 0.14 ; Todo: hier Wert evtl anpassen
+      set interaction-impact interaction-impact - 0.3 ; Todo: hier Wert evtl anpassen
       ask post post-id [ set reposts (reposts + 1)]
     ]
 
     ; create new post and distribute it
     ;create-post current-turtle ((2 * current-intent + post-intention) / 3) ((2 * turtle-credibility + current-credibility) / 3)
-    set to-repost lput (list current-turtle post-id) to-repost
 
     set interacted? true
+    ask post post-id [set interactions interactions + 1]
   ]
 
   ; recalculate intention and adjust network based on the interaction
@@ -613,6 +602,7 @@ to post-interaction [current-turtle post-id]
   if (interacted?) and ((random-float 1) < post-distr-prob) [
     distribute-post current-turtle post-id
   ]
+
 end
 
 ; -----------------------------------------------------------------------------------------
@@ -620,15 +610,15 @@ end
 ; -----------------------------------------------------------------------------------------
 
 to recalculate-intention [current-turtle interaction-impact post-intention current-origin sim-intentions?]
-  ; set probabilities for network adjustments
-  let follow-prob 0.2
-  let unfollow-prob 0.1
 
   ask current-turtle [
 
     ; ---------------------------- attitude
-    set attitude (env-awareness + interaction-impact + comfort) / 2
-    ;print(word attitude "    " initial-attitude)
+    set attitude 0.5 * (env-awareness + interaction-impact) + 0.5 * (comfort)
+
+    ; ---------------------------- pbc
+    set perceived-behavioral-control (self-efficacy + conditions + interaction-impact) / 2
+
 
 
     ; --------------------------- intention
@@ -636,7 +626,6 @@ to recalculate-intention [current-turtle interaction-impact post-intention curre
     ifelse influencer? = true
       [set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) ]
       [set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) * (1 - 0.3) + 0.3 * social-norm ]
-    ;unify-intent self
 
 
     ; --------------------------- network
@@ -650,8 +639,6 @@ to recalculate-intention [current-turtle interaction-impact post-intention curre
     if ((random-float 1) < unfollow-prob) and (out-link-to turtle current-origin != nobody and not(sim-intentions?))  [
       ask out-link-to turtle current-origin [die]
     ]
-
-    ;print(word "intention: " intent " attitide: " attitude " interaction-impact: " interaction-impact " dist: " dist " SN-Factor: " social-norm-factor " comment-average: " current-comment-average " same intention?: " sim-intentions?)
   ]
 end
 
@@ -663,12 +650,23 @@ to-report compare-intentions? [turtle-id post-id]
   ask turtle-id [set turtle-int intent]
   ask post post-id [set post-int intention]
 
-  report abs(turtle-int - post-int) <= 0.3
+  report abs(turtle-int - post-int) <= 0.4
 end
 
 ; -----------------------------------------------------------------------------------------
 ; ------------------------------- report ---------------------------------------
 ; -----------------------------------------------------------------------------------------
+
+to print-adoption-rates
+  let count-non-a count turtles with [intent <= 0.4]
+  let count-moderate count turtles with [intent > 0.4 and intent <= 0.6]
+  let count-a count turtles with [intent > 0.6]
+
+  ; Ausgabe der Ergebnisse
+  print (word "Anzahl Turtles non-a: " count-non-a)
+  print (word "Anzahl Turtles moderate: " count-moderate)
+  print (word "Anzahl Turtles a: " count-a)
+end
 
 to print-turtle-link-counts
   let cnt 0
@@ -754,39 +752,39 @@ ticks
 60.0
 
 SLIDER
-10
-285
-165
-318
+850
+40
+1005
+73
 num-nodes
 num-nodes
 50
 2000
-300.0
+1000.0
 50
 1
 NIL
 HORIZONTAL
 
 SLIDER
-10
-325
-165
-358
+850
+75
+1005
+108
 rewiring-probability
 rewiring-probability
 0
 1
-0.75
+0.9
 0.01
 1
 NIL
 HORIZONTAL
 
 BUTTON
-5
 10
-110
+10
+80
 43
 setup
 setup
@@ -800,67 +798,22 @@ NIL
 NIL
 1
 
-SLIDER
-10
-365
-165
-398
-num-connected-neighbors
-num-connected-neighbors
-1
-10
-4.0
-1
-1
-NIL
-HORIZONTAL
-
-SLIDER
-10
-405
-165
-438
-influencer-percentage
-influencer-percentage
-0
-0.3
-0.025
-0.005
-1
-NIL
-HORIZONTAL
-
-SLIDER
-10
-445
-165
-478
-influencer-link-prob
-influencer-link-prob
-0
-1
-0.25
-0.05
-1
-NIL
-HORIZONTAL
-
 TEXTBOX
-15
-260
-165
-278
+850
+25
+1000
+43
 Networkvariables
 11
 0.0
 1
 
 BUTTON
-135
+95
 10
-198
+172
 43
-NIL
+go once
 go
 NIL
 1
@@ -875,27 +828,10 @@ NIL
 BUTTON
 10
 50
-110
+80
 83
 NIL
 test
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
-BUTTON
-125
-50
-237
-85
-NIL
-end-simulation
 NIL
 1
 T
@@ -922,13 +858,14 @@ true
 true
 "" ""
 PENS
-"non-adopter" 1.0 0 -2674135 true "" "plot (count turtles with [intent <= 0.7]) / num-nodes"
-"adopter" 1.0 0 -13840069 true "" "plot (count turtles with [intent > 0.7]) / num-nodes"
+"non-adopter" 1.0 0 -2674135 true "" "plot (count turtles with [intent <= 0.4]) / num-nodes"
+"adopter" 1.0 0 -13840069 true "" "plot (count turtles with [intent > 0.6]) / num-nodes"
+"moderate-interested" 1.0 0 -817084 true "" "plot (count turtles with [intent > 0.4 and intent <= 0.6]) / num-nodes"
 
 BUTTON
-225
+180
 10
-288
+255
 43
 NIL
 go
@@ -941,6 +878,109 @@ NIL
 NIL
 NIL
 1
+
+SLIDER
+850
+150
+1022
+183
+liking-prob
+liking-prob
+0
+1
+0.048
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+850
+185
+1022
+218
+commenting-prob
+commenting-prob
+0
+1
+0.024
+0.001
+1
+NIL
+HORIZONTAL
+
+SLIDER
+850
+220
+1022
+253
+sharing-prob
+sharing-prob
+0
+1
+0.002
+0.001
+1
+NIL
+HORIZONTAL
+
+PLOT
+10
+255
+190
+405
+engagement rates <= 0.1
+NIL
+NIL
+0.0
+10.0
+0.0
+1.0
+true
+false
+"" ""
+PENS
+"default" 1.0 0 -16777216 true "" "plot count posts with [(engagement-rate >= 0.04) and (engagement-rate <= 0.1)] / (count posts + 0.001)"
+
+TEXTBOX
+850
+135
+1000
+153
+Interaction-probabilities
+11
+0.0
+1
+
+SLIDER
+850
+280
+1022
+313
+follow-prob
+follow-prob
+0
+1
+0.1
+0.05
+1
+NIL
+HORIZONTAL
+
+SLIDER
+850
+315
+1022
+348
+unfollow-prob
+unfollow-prob
+0
+1
+0.05
+0.05
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1347,6 +1387,28 @@ repeat 5 [rewire-one]
     <metric>average-path-length</metric>
     <metric>clustering-coefficient</metric>
     <steppedValueSet variable="rewiring-probability" first="0" step="0.025" last="1"/>
+  </experiment>
+  <experiment name="experiment" repetitions="30" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <metric>abs(reference value from real world data - measure (eg count turtles))</metric>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.75"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="influencer-link-prob">
+      <value value="0.25"/>
+      <value value="0.05"/>
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="300"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="influencer-percentage">
+      <value value="0.025"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-connected-neighbors">
+      <value value="4"/>
+    </enumeratedValueSet>
   </experiment>
 </experiments>
 @#$#@#$#@
