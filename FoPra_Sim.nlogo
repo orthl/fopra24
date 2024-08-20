@@ -86,6 +86,8 @@ to setup
   ; initialize nodes
   initialize-nodes
 
+
+  print all-influencer
   ;print-adoption-rates
   ;print-influencer-count
   ;print-turtle-link-counts
@@ -96,7 +98,8 @@ end
 to go
   ;if ((count turtles with [intent > 0.7]) / num-nodes) > 0.99  [stop] ; todo abbruchkriterium
   ask posts [die]
-  ask links [hide-link]
+  ;ask links [hide-link]
+
 
   ;let follower-count-old 0
   ;let follower-count-new 0
@@ -154,7 +157,10 @@ to initialize-nodes
       set comfort 1
       set attitude 1
       set perceived-behavioral-control 1
+      set self-efficacy 1
+      set conditions 1
       set social-norm 1
+      set initial-norm 1
     ]
 
     set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) * (1 - 0.3) + 0.3 * social-norm ; Calculate composite intention
@@ -402,7 +408,7 @@ to create-post [current-turtle new-intent new-credibility]
     hatch-posts 1[
       set color red
       set size 0.5
-      setxy (xcor - random 2) (ycor - random 2)
+      setxy (xcor + random 2) (ycor + random 2)
 
       set origin-agent-id [who] of current-turtle ;
       set likes 0  ; number of likes
@@ -466,8 +472,7 @@ end
 
 to post-interaction [current-turtle post-id]
 
-  ; set probabilities and other vars (probs so high, because values are getting multiplicated with perceived behavioral control)
-
+  ; set vars
   let reading-prob 0.7
   let interaction-impact 0
   let sim-intentions? compare-intentions? current-turtle post-id
@@ -491,8 +496,17 @@ to post-interaction [current-turtle post-id]
     set current-origin origin-agent-id
   ]
 
-  ; save intention of agent locally and adjust social-norm based on intention of post
+  let origin-influencer? 0
+  ask turtle current-origin [set origin-influencer? influencer?]
+
+
+  ; if agent is influencer, the impact of the post is higher
   let post-impact 0.1
+  ifelse origin-influencer? = true
+    [set post-impact 0.1]
+    [set post-impact 0.05]
+
+  ; save intention of agent locally and adjust social-norm based on intention of post
   let current-intent 0
   let turtle-credibility 0
   ask current-turtle [
@@ -589,7 +603,7 @@ to post-interaction [current-turtle post-id]
     ]
 
     ; create new post and distribute it
-    ;create-post current-turtle ((2 * current-intent + post-intention) / 3) ((2 * turtle-credibility + current-credibility) / 3)
+    create-post current-turtle ((2 * current-intent + post-intention) / 3) ((2 * turtle-credibility + current-credibility) / 3)
 
     set interacted? true
     ask post post-id [set interactions interactions + 1]
