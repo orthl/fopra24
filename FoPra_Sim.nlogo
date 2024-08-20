@@ -77,6 +77,8 @@ to setup
   clear-all
   reset-ticks
 
+  if use-random-seed? [random-seed seed]
+
   ; Create network
   create-nodes
   wire-lattice
@@ -408,7 +410,19 @@ to create-post [current-turtle new-intent new-credibility]
     hatch-posts 1[
       set color red
       set size 0.5
-      setxy (xcor + random 2) (ycor + random 2)
+      ; check if new coordinates are in world, else use coordinates of hatching agent
+      let new-x (xcor + random 2)
+      let new-y (ycor + random 2)
+
+       ifelse new-x > max-pxcor
+        [ set new-x max-pxcor ]
+        [ if new-x < min-pxcor [set new-x min-pxcor]]
+
+      ifelse new-y > max-pycor
+        [ set new-y max-pycor]
+        [ if new-y < min-pycor [ set new-y min-pycor]]
+
+      setxy new-x new-y
 
       set origin-agent-id [who] of current-turtle ;
       set likes 0  ; number of likes
@@ -767,9 +781,9 @@ ticks
 
 SLIDER
 850
-40
+25
 1005
-73
+58
 num-nodes
 num-nodes
 50
@@ -782,9 +796,9 @@ HORIZONTAL
 
 SLIDER
 850
-75
+60
 1005
-108
+93
 rewiring-probability
 rewiring-probability
 0
@@ -814,9 +828,9 @@ NIL
 
 TEXTBOX
 850
-25
+10
 1000
-43
+28
 Networkvariables
 11
 0.0
@@ -895,13 +909,13 @@ NIL
 
 SLIDER
 850
-150
-1022
-183
+135
+1005
+168
 liking-prob
 liking-prob
 0
-1
+0.3
 0.048
 0.001
 1
@@ -910,13 +924,13 @@ HORIZONTAL
 
 SLIDER
 850
-185
-1022
-218
+170
+1005
+203
 commenting-prob
 commenting-prob
 0
-1
+0.3
 0.024
 0.001
 1
@@ -925,13 +939,13 @@ HORIZONTAL
 
 SLIDER
 850
-220
-1022
-253
+205
+1005
+238
 sharing-prob
 sharing-prob
 0
-1
+0.3
 0.002
 0.001
 1
@@ -958,9 +972,9 @@ PENS
 
 TEXTBOX
 850
-135
+120
 1000
-153
+138
 Interaction-probabilities
 11
 0.0
@@ -968,9 +982,9 @@ Interaction-probabilities
 
 SLIDER
 850
-280
-1022
-313
+265
+1005
+298
 follow-prob
 follow-prob
 0
@@ -983,9 +997,9 @@ HORIZONTAL
 
 SLIDER
 850
-315
-1022
-348
+300
+1005
+333
 unfollow-prob
 unfollow-prob
 0
@@ -995,6 +1009,48 @@ unfollow-prob
 1
 NIL
 HORIZONTAL
+
+TEXTBOX
+850
+250
+1000
+268
+Network-probabilities
+11
+0.0
+1
+
+TEXTBOX
+855
+350
+1005
+368
+Random seed\n
+11
+0.0
+1
+
+INPUTBOX
+855
+365
+1005
+425
+seed
+2801.0
+1
+0
+Number
+
+SWITCH
+855
+430
+1005
+463
+use-random-seed?
+use-random-seed?
+1
+1
+-1000
 
 @#$#@#$#@
 ## WHAT IS IT?
