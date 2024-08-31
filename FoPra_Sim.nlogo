@@ -359,7 +359,7 @@ to let-influencer-post
   foreach mega-influencers [ turtle-id ->
     let actual-id item 0 turtle-id
     ask turtle actual-id[
-      repeat 2[
+      repeat 2 * posts-frequency[
         create-post self intent credibility
       ]
     ]
@@ -368,7 +368,7 @@ to let-influencer-post
    foreach macro-influencers [ turtle-id ->
     let actual-id item 0 turtle-id
     ask turtle actual-id[
-      repeat 1[
+      repeat 1 * posts-frequency[
         if (random-float 1) < 0.8 [create-post self intent credibility]
       ]
     ]
@@ -377,7 +377,7 @@ to let-influencer-post
    foreach micro-influencers [ turtle-id ->
     let actual-id item 0 turtle-id
     ask turtle actual-id[
-      repeat 1[
+      repeat 1 * posts-frequency[
         if (random-float 1) < 0.9 [create-post self intent credibility]
       ]
     ]
@@ -386,7 +386,7 @@ to let-influencer-post
   foreach regular-influencers [ turtle-id ->
     let actual-id item 0 turtle-id
     ask turtle actual-id[
-      repeat 1[
+      repeat 1 * posts-frequency[
         if (random-float 1) < 0.6 [create-post self intent credibility]
       ]
     ]
@@ -473,6 +473,7 @@ to distribute-post [outgoing-turtle post-id]
 
         ; if agent hasnt already seen post, it interacts with certain prob with it
         if (out-link-to num != nobody) and ((random-float 1) <= perceived-behavioral-control) and (new-link?)  [post-interaction num who]
+        ; if (out-link-to num != nobody) and ((random-float 1) <= seeing_prob) and (new-link?)  [post-interaction num who] ; Experiment 3
       ]
     ]
   ]
@@ -886,9 +887,9 @@ true
 true
 "" ""
 PENS
-"non-adopter" 1.0 0 -2674135 true "" "plot (count turtles with [intent <= 0.4]) / num-nodes"
-"adopter" 1.0 0 -13840069 true "" "plot (count turtles with [intent > 0.6]) / num-nodes"
-"moderate-interested" 1.0 0 -817084 true "" "plot (count turtles with [intent > 0.4 and intent <= 0.6]) / num-nodes"
+"non-adopter" 1.0 0 -2674135 true "" "plot (count turtles with [intent <= 0.4]) / count turtles"
+"adopter" 1.0 0 -13840069 true "" "plot (count turtles with [intent > 0.6]) / count turtles"
+"moderate-interested" 1.0 0 -817084 true "" "plot (count turtles with [intent > 0.4 and intent <= 0.6]) / count turtles"
 
 BUTTON
 180
@@ -1051,6 +1052,46 @@ use-random-seed?
 1
 1
 -1000
+
+SLIDER
+1040
+25
+1212
+58
+seeing_Prob
+seeing_Prob
+0
+1
+0.5
+0.1
+1
+NIL
+HORIZONTAL
+
+TEXTBOX
+1040
+10
+1190
+28
+Post-frequency
+11
+0.0
+1
+
+SLIDER
+1040
+60
+1212
+93
+posts-frequency
+posts-frequency
+1
+20
+3.0
+1
+1
+NIL
+HORIZONTAL
 
 @#$#@#$#@
 ## WHAT IS IT?
@@ -1443,7 +1484,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.3.0
+NetLogo 6.4.0
 @#$#@#$#@
 setup
 repeat 5 [rewire-one]
@@ -1478,6 +1519,285 @@ repeat 5 [rewire-one]
     </enumeratedValueSet>
     <enumeratedValueSet variable="num-connected-neighbors">
       <value value="4"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment1" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>count turtles with [intent &gt; 0.6] / count turtles</metric>
+    <metric>count turtles with [intent &lt;= 0.4] / count turtles</metric>
+    <metric>count turtles with [intent &gt; 0.4 and intent &lt;= 0.6] / count turtles</metric>
+    <enumeratedValueSet variable="sharing-prob">
+      <value value="0.002"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="commenting-prob">
+      <value value="0.024"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="unfollow-prob">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="follow-prob">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="posts-frequency">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seed">
+      <value value="2801"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="liking-prob">
+      <value value="0.048"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="num-nodes" first="1000" step="250" last="2000"/>
+    <enumeratedValueSet variable="use-random-seed?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment3_like" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>count turtles with [intent &gt; 0.6] / num-nodes</metric>
+    <metric>count turtles with [intent &lt;= 0.4] / num-nodes</metric>
+    <metric>count turtles with [intent &gt; 0.4 and intent &lt;= 0.6] / num-nodes</metric>
+    <enumeratedValueSet variable="sharing-prob">
+      <value value="0.002"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="commenting-prob">
+      <value value="0.024"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="unfollow-prob">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="follow-prob">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="posts-frequency">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seed">
+      <value value="2801"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="liking-prob">
+      <value value="0.048"/>
+      <value value="0.096"/>
+      <value value="0.144"/>
+      <value value="0.192"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="use-random-seed?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment3_comment" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>count turtles with [intent &gt; 0.6] / num-nodes</metric>
+    <metric>count turtles with [intent &lt;= 0.4] / num-nodes</metric>
+    <metric>count turtles with [intent &gt; 0.4 and intent &lt;= 0.6] / num-nodes</metric>
+    <enumeratedValueSet variable="sharing-prob">
+      <value value="0.002"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="commenting-prob">
+      <value value="0.024"/>
+      <value value="0.048"/>
+      <value value="0.072"/>
+      <value value="0.096"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="unfollow-prob">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="follow-prob">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="posts-frequency">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seed">
+      <value value="2801"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="liking-prob">
+      <value value="0.048"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="use-random-seed?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment3_share" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>count turtles with [intent &gt; 0.6] / num-nodes</metric>
+    <metric>count turtles with [intent &lt;= 0.4] / num-nodes</metric>
+    <metric>count turtles with [intent &gt; 0.4 and intent &lt;= 0.6] / num-nodes</metric>
+    <enumeratedValueSet variable="sharing-prob">
+      <value value="0.002"/>
+      <value value="0.004"/>
+      <value value="0.006"/>
+      <value value="0.008"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="commenting-prob">
+      <value value="0.024"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="unfollow-prob">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="follow-prob">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="posts-frequency">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seed">
+      <value value="2801"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="liking-prob">
+      <value value="0.048"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="use-random-seed?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment2" repetitions="10" sequentialRunOrder="false" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>count turtles with [intent &gt; 0.6] / count turtles</metric>
+    <metric>count turtles with [intent &lt;= 0.4] / count turtles</metric>
+    <metric>count turtles with [intent &gt; 0.4 and intent &lt;= 0.6] / count turtles</metric>
+    <enumeratedValueSet variable="sharing-prob">
+      <value value="0.002"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="commenting-prob">
+      <value value="0.024"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="follow-prob">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="unfollow-prob">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="posts-frequency">
+      <value value="1"/>
+      <value value="2"/>
+      <value value="3"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seed">
+      <value value="2801"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="liking-prob">
+      <value value="0.048"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="use-random-seed?">
+      <value value="false"/>
+    </enumeratedValueSet>
+  </experiment>
+  <experiment name="experiment3_read" repetitions="10" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>count turtles with [intent &gt; 0.6] / count turtles</metric>
+    <metric>count turtles with [intent &lt;= 0.4] / count turtles</metric>
+    <metric>count turtles with [intent &gt; 0.4 and intent &lt;= 0.6] / count turtles</metric>
+    <enumeratedValueSet variable="sharing-prob">
+      <value value="0.002"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="commenting-prob">
+      <value value="0.024"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="unfollow-prob">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="follow-prob">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="posts-frequency">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seed">
+      <value value="2801"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="liking-prob">
+      <value value="0.048"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="use-random-seed?">
+      <value value="false"/>
+    </enumeratedValueSet>
+    <steppedValueSet variable="seeing_Prob" first="0.5" step="0.1" last="1"/>
+  </experiment>
+  <experiment name="experimentALL" repetitions="1" runMetricsEveryStep="true">
+    <setup>setup</setup>
+    <go>go</go>
+    <timeLimit steps="400"/>
+    <metric>count turtles with [intent &gt; 0.6] / count turtles</metric>
+    <metric>count turtles with [intent &lt;= 0.4] / count turtles</metric>
+    <metric>count turtles with [intent &gt; 0.4 and intent &lt;= 0.6] / count turtles</metric>
+    <enumeratedValueSet variable="sharing-prob">
+      <value value="0.002"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="commenting-prob">
+      <value value="0.024"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="unfollow-prob">
+      <value value="0.05"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="posts-frequency">
+      <value value="1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seeing_Prob">
+      <value value="0.5"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="rewiring-probability">
+      <value value="0.9"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="follow-prob">
+      <value value="0.1"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="seed">
+      <value value="2801"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="liking-prob">
+      <value value="0.048"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="num-nodes">
+      <value value="1000"/>
+    </enumeratedValueSet>
+    <enumeratedValueSet variable="use-random-seed?">
+      <value value="false"/>
     </enumeratedValueSet>
   </experiment>
 </experiments>
