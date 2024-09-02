@@ -1,30 +1,8 @@
-; notes: jede Turtle hat 4 ausgehende Links (basierend auf der Nummer der connecteten Nachbarn) und eine zufällige Zahl an Turtles, die ihr folgen
-;        Influencer Turtles haben dabei mehr follower als nicht-influencer
-; num-nodes : Gesamtanzahl der Nodes
-; rewiring-probability: spiegelt p in einem Small Network wider (Wahrscheinlichkeit, dass ein bestehender Link neu mit einem zuf. Node verlinkt wird)
-; num-connected-neighbors: Anzahl an Nachbarn, mit denen der Node initial verbunden wird (entspricht der Anzahl an ausgehenden Links pro Node)
-; influencer-percentage: prozentueller Anteil der Influencer im Netzwerk
-; influencer-link-probability: Wahrscheinlichkeit dafür, dass ein Link in der Rewire-Phase zu einem Influencer statt einem "normalen" Node gezogen wird
-;
-
-;----- Github Befehle -----
-;cd /P/Uni/Forschungspraktikum/NetLogo
-;git status
-;git add .
-;git commit -m "Message"
-;git push
-;-------
-;cd /P/Uni/Forschungspraktikum/NetLogo
-;git status
-;git fetch
-;git pull
-
 extensions [array table]
 
 globals [
   all-influencer ; list of all influencer
   all-nodes ; list of all nodes
-  ;growth-rate
 ]
 
 turtles-own [
@@ -55,14 +33,9 @@ posts-own [
   reposts
   origin-agent-id
   intention
-  post-credibility
   interactions
   impressions
   engagement-rate
-]
-
-all-posts-own [
-  link-credibility  ; composite if credibility of influencer and reposting agent and the post-summary (#likes, #comments, ..)
 ]
 
 
@@ -88,8 +61,8 @@ to setup
   ; initialize nodes
   initialize-nodes
 
-
-  print all-influencer
+  ; print information about infomration of setup
+  ;print all-influencer
   ;print-adoption-rates
   ;print-influencer-count
   ;print-turtle-link-counts
@@ -98,29 +71,11 @@ to setup
 end
 
 to go
-  ;if ((count turtles with [intent > 0.7]) / num-nodes) > 0.99  [stop] ; todo abbruchkriterium
   ask posts [die]
-  ;ask links [hide-link]
-
-
-  ;let follower-count-old 0
-  ;let follower-count-new 0
-
-  ;ask turtles with [influencer? = true] [
-  ;  let num-followers count my-in-links
-  ;  set follower-count-old follower-count-old + num-followers
-  ;]
+  ask links [hide-link]
 
   ; Distribute posts
   let-influencer-post
-
-  ;ask turtles with [influencer? = true] [
-  ;  let num-followers count my-in-links
-  ;  set follower-count-new follower-count-new + num-followers
-  ;]
-
-  ;set growth-rate ((follower-count-new - follower-count-old) / follower-count-old) * 100
-  ;print growth-rate
 
   ask posts [
     ifelse impressions != 0
@@ -129,11 +84,6 @@ to go
   ]
 
   tick
-end
-
-to test
-  print ceiling ((ln num-nodes) / 2)
-
 end
 
 ; -----------------------------------------------------------------------------------------
@@ -154,6 +104,7 @@ to initialize-nodes
     set conditions random-float 1                            ; determine conditions randomly
     set perceived-behavioral-control (self-efficacy + conditions) / 2 ; Calculate composite perceived behavioral control
 
+    ; if agent is influencer, overwrite all values with one
     if influencer? = true [
       set env-awareness 1
       set comfort 1
@@ -165,6 +116,7 @@ to initialize-nodes
       set initial-norm 1
     ]
 
+    ; calculate intention
     set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) * (1 - 0.3) + 0.3 * social-norm ; Calculate composite intention
 
   ]
@@ -172,12 +124,14 @@ end
 
 to initialize-initial-attitudes
 
+  ; groups of innovation diffusion and their assigned initial attitude
   let id-groups table:make
   table:put id-groups 0.135 0.8
   table:put id-groups 0.34 0.6
   table:put id-groups 0.3399 0.4  ; has to be a bit different than the first 0.34, otherwise it would overwrite it
   table:put id-groups 0.16 0.2
 
+  ; classification of the agents into groups and setting of initial attitude values depending on the group
   let groupKeys table:keys id-groups
   foreach groupKeys [
   group ->
@@ -227,9 +181,9 @@ to wire-lattice
   ; iterate over nodes
   let n 0
   while [ n < count turtles ] [
+
     ; make edges with the next x neighbors
     let cnt 1
-    ;repeat num_connected_neighbors [
     repeat random-num-connected-neighbors [
       make-edge turtle n
      turtle ((n + cnt) mod count turtles)
@@ -240,6 +194,7 @@ to wire-lattice
   ]
 end
 
+; -------- report random amount of neighbors  ---------
 to-report random-num-connected-neighbors
   let num-connected-neighbors ceiling ((ln num-nodes) / 2)
   let lower-limit num-connected-neighbors / 2
@@ -307,6 +262,7 @@ end
 ; ------------------------------- post distribution ---------------------------------------
 ; -----------------------------------------------------------------------------------------
 
+; ------------ posting of influencer ------------
 to let-influencer-post
   let mega-influencers []
   let macro-influencers []
@@ -400,16 +356,18 @@ end
 to create-post [current-turtle new-intent new-credibility]
 
   let my-incoming-links[]
+
   ; ask for all links to the influencer
   ask my-in-links [
     set my-incoming-links lput end1 my-incoming-links ; add all follower ids to list
   ]
 
-  ; turtle creates post (influencer or turtle which reposts)
+  ; turtle creates post (turtle can be influencer or user which reposts)
   ask current-turtle [
     hatch-posts 1[
       set color red
       set size 0.5
+
       ; check if new coordinates are in world, else use coordinates of hatching agent
       let new-x (xcor + random 2)
       let new-y (ycor + random 2)
@@ -430,7 +388,6 @@ to create-post [current-turtle new-intent new-credibility]
       set comments 0 ;number of comments
       set reposts 0  ; number of reposts
       set intention new-intent  ; intention value of the post creator
-      set post-credibility new-credibility ; credibility of creator
 
       distribute-post current-turtle who
     ]
@@ -442,7 +399,7 @@ end
 
 to distribute-post [outgoing-turtle post-id]
 
-  let my-incoming-links[] ;var definition
+  let my-incoming-links[]
 
   ; collect follower of a turtle
   ask outgoing-turtle [
@@ -465,15 +422,9 @@ to distribute-post [outgoing-turtle post-id]
           if influencer? != true [set color magenta]
         ]
 
-        ; set the credibility of the post also for the link
-        let tmp post-credibility
-        ask my-out-links [
-          set link-credibility tmp
-        ]
-
         ; if agent hasnt already seen post, it interacts with certain prob with it
         if (out-link-to num != nobody) and ((random-float 1) <= perceived-behavioral-control) and (new-link?)  [post-interaction num who]
-        ; if (out-link-to num != nobody) and ((random-float 1) <= seeing_prob) and (new-link?)  [post-interaction num who] ; Experiment 3
+        ; if (out-link-to num != nobody) and ((random-float 1) <= seeing-prob) and (new-link?)  [post-interaction num who] ; Experiment 3
       ]
     ]
   ]
@@ -485,6 +436,7 @@ end
 ; ------------------------------- post interaction ----------------------------------------
 ; -----------------------------------------------------------------------------------------
 
+; ---------- interaction with post ---------------
 to post-interaction [current-turtle post-id]
 
   ; set vars
@@ -492,7 +444,7 @@ to post-interaction [current-turtle post-id]
   let interaction-impact 0
   let sim-intentions? compare-intentions? current-turtle post-id
   let interacted? false
-  let post-distr-prob 0.7   ;toDo
+  let post-distr-prob 0.7
 
 
   ; save post values locally
@@ -511,6 +463,7 @@ to post-interaction [current-turtle post-id]
     set current-origin origin-agent-id
   ]
 
+  ; save turtle value locally
   let origin-influencer? 0
   ask turtle current-origin [set origin-influencer? influencer?]
 
@@ -528,15 +481,12 @@ to post-interaction [current-turtle post-id]
     set current-intent intent
     set turtle-credibility credibility
 
+    ; adapt social norm of receiving agent to social norm of sender (agent who posted post)
     if influencer? = 0 [set social-norm (social-norm + post-impact * (post-intention - social-norm))]
-
-    ; if intention of post is smaller than agents, it gets substracted from social norm, otherwise it gets added
-    ;ifelse post-intention < intent
-    ;  [set social-norm (social-norm - (post-impact * post-intention))]
-    ;  [set social-norm (social-norm + (post-impact * post-intention))]
   ]
-  set interaction-impact interaction-impact + 0.25
 
+  ; increase impact of interaction and impressions of post
+  set interaction-impact interaction-impact + 0.25
   ask post post-id [set impressions impressions + 1]
 
 
@@ -549,33 +499,27 @@ to post-interaction [current-turtle post-id]
       if current-comments != 0 [
       let comment-intent (current-comment-average / current-comments)
 
-        ; adjust the social norm
+        ; adjust the social norm (adapt to social norm of receiving agent to social norm of sender (agent who posted post))
         if influencer? = 0 [set social-norm (social-norm + comment-impact * (comment-intent - social-norm))]
-
-        ; adjust the social norm based on it (substract if lower than agents intention, add if higher)
-        ;ifelse (comment-intent < intent)
-        ;  [set social-norm (social-norm - comment-impact * comment-intent)]
-        ;  [set social-norm (social-norm + comment-impact * comment-intent)]
       ]
-
-      ask link-with post post-id [ set link-credibility ((link-credibility + current-comment-average) / 2)]
     ]
 
     ; increase interaction impact if the intentions are similar, decrease otherwise
     ifelse sim-intentions?
-      [set interaction-impact interaction-impact + 0.15] ; Todo: hier evtl anpassen
-      [set interaction-impact interaction-impact - 0.15] ; Todo: hier evtl anpassen
+      [set interaction-impact interaction-impact + 0.15]
+      [set interaction-impact interaction-impact - 0.15]
   ]
 
   ; ------------------  agent likes post
   if (random-float 1) < liking-prob [
-    set interaction-impact interaction-impact + 0.1 ; Todo: hier evtl anpassen
+    ; increase interaction impact and number of likes and interactions of post
+    set interaction-impact interaction-impact + 0.1
     ask post post-id [
       set likes (likes + 1)
+      set interactions interactions + 1
     ]
 
     set interacted? true
-    ask post post-id [set interactions interactions + 1]
   ]
 
   ; ------------------  agent comments post
@@ -585,43 +529,43 @@ to post-interaction [current-turtle post-id]
     ; if the intention of post and agent is similar, increase interaction impact, otherwise decrease it
     ifelse sim-intentions?
     [
-      set interaction-impact interaction-impact + 0.2 ; Todo: hier Wert evtl anpassen
+      set interaction-impact interaction-impact + 0.2
       ask post post-id [
         set comment-average (comment-average + current-intent)
         set comments (comments + 1)
+        set interactions interactions + 1
       ]
       set current-comments (current-comments + 1)
    ][
-      set interaction-impact interaction-impact - 0.2 ; Todo: hier Wert evtl anpassen
+      set interaction-impact interaction-impact - 0.2
       ask post post-id [
         set comment-average (comment-average + current-intent)
         set comments (comments + 1)
+        set interactions interactions + 1
       ]
       set current-comments (current-comments + 1)
     ]
 
     set interacted? true
-    ask post post-id [set interactions interactions + 1]
   ]
 
   ; -----------------------  agent shares post
   if (random-float 1) < (sharing-prob) [
 
-    ; in- or decrease interaction impact based on intentions and increment repost counter
+    ; in- or decrease interaction impact based on intentions and increment repost counter and interaction count of post
     ifelse sim-intentions?
     [
-      set interaction-impact interaction-impact + 0.3 ; Todo: hier Wert evtl anpassen
-      ask post post-id  [set reposts (reposts + 1)]]
+      set interaction-impact interaction-impact + 0.3
+      ask post post-id  [set reposts (reposts + 1) set interactions interactions + 1]]
     [
-      set interaction-impact interaction-impact - 0.3 ; Todo: hier Wert evtl anpassen
-      ask post post-id [ set reposts (reposts + 1)]
+      set interaction-impact interaction-impact - 0.3
+      ask post post-id [ set reposts (reposts + 1) set interactions interactions + 1]
     ]
 
     ; create new post and distribute it
     create-post current-turtle ((2 * current-intent + post-intention) / 3) ((2 * turtle-credibility + current-credibility) / 3)
 
     set interacted? true
-    ask post post-id [set interactions interactions + 1]
   ]
 
   ; recalculate intention and adjust network based on the interaction
@@ -638,20 +582,19 @@ end
 ; ------------------------------- recalculation of intention ------------------------------
 ; -----------------------------------------------------------------------------------------
 
+; -------- recalculation of agent specific values and network adjustments ------------
 to recalculate-intention [current-turtle interaction-impact post-intention current-origin sim-intentions?]
 
   ask current-turtle [
 
-    ; ---------------------------- attitude
+    ; ------ attitude
     set attitude 0.5 * (env-awareness + interaction-impact) + 0.5 * (comfort)
 
-    ; ---------------------------- pbc
+    ; ------- pbc
     set perceived-behavioral-control (self-efficacy + conditions + interaction-impact) / 2
 
-
-
-    ; --------------------------- intention
-    ; recalculate intention, social norm is only applied to non-influencer
+    ; ------- intention
+    ; recalculate intention, social norm is not relevant for influencer
     ifelse influencer? = true
       [set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) ]
       [set intent (0.5 * attitude + 0.5 * perceived-behavioral-control) * (1 - 0.3) + 0.3 * social-norm ]
@@ -686,6 +629,7 @@ end
 ; ------------------------------- report ---------------------------------------
 ; -----------------------------------------------------------------------------------------
 
+; ------------ reports adoption rates ------------
 to print-adoption-rates
   let count-non-a count turtles with [intent <= 0.4]
   let count-moderate count turtles with [intent > 0.4 and intent <= 0.6]
@@ -697,6 +641,7 @@ to print-adoption-rates
   print (word "Anzahl Turtles a: " count-a)
 end
 
+; ------------ reports link counts ------------
 to print-turtle-link-counts
   let cnt 0
   let cnt-2 0
@@ -716,6 +661,7 @@ to print-turtle-link-counts
   print all-followers
 end
 
+; ----- reports influencer and their follower counts --------
 to print-influencer-count
   let cnt 0
   let all-followers []
@@ -727,11 +673,13 @@ to print-influencer-count
           ;print(word cnt " and counted turtle " who " and influencer?: " influencer?)
     ]
   ]
-  print (word "Number of influencers " cnt)
+  print (word "Number of influencer " cnt)
   set all-followers sort all-followers
+  print(word "number of followers of influencer:" )
   print all-followers
 end
 
+; ------ reports distribution of initial attitude ------------
 to print-initial-attitudes
 
   let count-0.2 count turtles with [initial-attitude = 0.2]
@@ -740,7 +688,7 @@ to print-initial-attitudes
   let count-0.8 count turtles with [initial-attitude = 0.8]
   let count-1.0 count turtles with [initial-attitude = 1.0]
 
-  ; Ausgabe der Ergebnisse
+
   print (word "Anzahl Turtles mit initial-attitude = 0.2: " count-0.2)
   print (word "Anzahl Turtles mit initial-attitude = 0.4: " count-0.4)
   print (word "Anzahl Turtles mit initial-attitude = 0.6: " count-0.6)
@@ -748,10 +696,6 @@ to print-initial-attitudes
   print (word "Anzahl Turtles mit initial-attitude = 1.0: " count-1.0)
   print(word "übrige Agents "  length all-nodes)
 end
-
-
-; Copyright 2015 Uri Wilensky.
-; See Info tab for full copyright and license.
 @#$#@#$#@
 GRAPHICS-WINDOW
 330
@@ -813,8 +757,8 @@ HORIZONTAL
 BUTTON
 10
 10
-80
-43
+85
+50
 setup
 setup
 NIL
@@ -841,7 +785,7 @@ BUTTON
 95
 10
 172
-43
+50
 go once
 go
 NIL
@@ -854,28 +798,11 @@ NIL
 NIL
 1
 
-BUTTON
-10
-50
-80
-83
-NIL
-test
-NIL
-1
-T
-OBSERVER
-NIL
-NIL
-NIL
-NIL
-1
-
 PLOT
 10
-95
-310
-245
+75
+315
+280
 Adoption rates
 NIL
 NIL
@@ -895,7 +822,7 @@ BUTTON
 180
 10
 255
-43
+50
 NIL
 go
 T
@@ -952,24 +879,6 @@ sharing-prob
 1
 NIL
 HORIZONTAL
-
-PLOT
-10
-255
-190
-405
-engagement rates <= 0.1
-NIL
-NIL
-0.0
-10.0
-0.0
-1.0
-true
-false
-"" ""
-PENS
-"default" 1.0 0 -16777216 true "" "plot count posts with [(engagement-rate >= 0.04) and (engagement-rate <= 0.1)] / (count posts + 0.001)"
 
 TEXTBOX
 850
@@ -1058,8 +967,8 @@ SLIDER
 25
 1212
 58
-seeing_Prob
-seeing_Prob
+seeing-prob
+seeing-prob
 0
 1
 0.5
@@ -1087,7 +996,7 @@ posts-frequency
 posts-frequency
 1
 20
-3.0
+1.0
 1
 1
 NIL
@@ -1096,109 +1005,63 @@ HORIZONTAL
 @#$#@#$#@
 ## WHAT IS IT?
 
-This model explores the formation of networks that result in the "small world" phenomenon -- the idea that a person is only a couple of connections away from any other person in the world.
-
-A popular example of the small world phenomenon is the network formed by actors appearing in the same movie (e.g., "[Six Degrees of Kevin Bacon](https://en.wikipedia.org/wiki/Six_Degrees_of_Kevin_Bacon)"), but small worlds are not limited to people-only networks. Other examples range from power grids to the neural networks of worms. This model illustrates some general, theoretical conditions under which small world networks between people or things might occur.
+The model is intended to be used to investigate innovation diffusion (ID) in social networks with the help of the Theory Of Planned Behavior (TPB).
+The model represents an abstracted social network (X, former Twitter) in which posts are made by influencers with whom people interact. Based on these interactions, the intentions of the agents are then changed, which may or may not result in them adopting an innovation.
 
 ## HOW IT WORKS
 
-This model is an adaptation of the [Watts-Strogatz model](https://en.wikipedia.org/wiki/Watts-Strogatz_model) proposed by Duncan Watts and Steve Strogatz (1998). It begins with a network where each person (or "node") is connected to his or her two neighbors on either side. Using this a base, we then modify the network by rewiring nodes–changing one end of a connected pair of nodes and keeping the other end the same. Over time, we analyze the effect this rewiring has the on various connections between nodes and on the properties of the network.
+The network setup is inspired by Kaufmann, P., et. al.: Simulating the diffusion of organic farming practices in two New EU Member States. Ecological Economics 68(10), 2580–2593 (Aug 2009) and is based on a modified version of the small-world model by Watts, D.J., Strogatz, S.H.: Collective dynamics of ‘small-world’ networks. Nature
+393(6684), 440–442 (1998), which was expanded to include elements from preferential attachment from Barabasi, A.L., Albert, R.: Emergence of scaling in random networks. Science 286(5439), 509–512 (Oct 1999).
 
-Particularly, we're interested in identifying "small worlds." To identify small worlds, the "average path length" (abbreviated "apl") and "clustering coefficient" (abbreviated "cc") of the network are calculated and plotted after a rewiring is performed. Networks with _short_ average path lengths and _high_ clustering coefficients are considered small world networks. See the **Statistics** section of HOW TO USE IT on how these are calculated.
+In each tick, posts are generated by influencers, distributed in the network and the agents interact with these posts. The aim is to analyze the changes in the intentions of the agents' intentions with regard to adaptation over time. In order to enable the presentation of the posts and the recording of all relevant interaction data, the “posts” breed was used. This object also makes it possible to establish connections between the agents and the posts as soon as an agent sees a post.
+In the first step, all agents that have a direct connection to a influencer are linked to the post. As soon as these agents have interacted with the interact with the post, the post is forwarded to their direct neighbors with a certain probability.
+forwarded to their direct neighbors, which simulates the dissemination process in the network. This diffusion of the posts lasts one tick at a time, so that with each new
+each new tick, the previously generated posts are removed and replaced by new posts.
+replaced by new posts. 
+
 
 ## HOW TO USE IT
 
-The NUM-NODES slider controls the size of the network. Choose a size and press SETUP.
+Pressing the SETUP button initializes the model and is necessary for starting the simulation. 
 
-Pressing the REWIRE-ONE button picks one edge at random, rewires it, and then plots the resulting network properties in the "Network Properties Rewire-One" graph. The REWIRE-ONE button _ignores_ the REWIRING-PROBABILITY slider. It will always rewire one exactly one edge in the network that has not yet been rewired _unless_ all edges in the network have already been rewired.
+With pressing of the GO-ONCE button, one tick of the simulation is executed.
 
-Pressing the REWIRE-ALL button starts with a new lattice (just like pressing SETUP) and then rewires all of the edges edges according to the current REWIRING-PROBABILITY. In other words, it `asks` each `edge` to roll a die that will determine whether or not it is rewired. The resulting network properties are then plotted on the "Network Properties Rewire-All" graph. Changing the REWIRING-PROBABILITY slider changes the fraction of edges rewired during each run. Running REWIRE-ALL at multiple probabilities produces a range of possible networks with varying average path lengths and clustering coefficients.
+With pressing of the GO button, the simulation runs until it is stopped by pressing again.
 
-When you press HIGHLIGHT and then point to a node in the view it color-codes the nodes and edges. The node itself turns white. Its neighbors and the edges connecting the node to those neighbors turn orange. Edges connecting the neighbors of the node to each other turn yellow. The amount of yellow between neighbors gives you a sort of indication of the clustering coefficient for that node. The NODE-PROPERTIES monitor displays the average path length and clustering coefficient of the highlighted node only. The AVERAGE-PATH-LENGTH and CLUSTERING-COEFFICIENT monitors display the values for the entire network.
-
-### Statistics
-
-**Average Path Length**: Average path length is calculated by finding the shortest path between all pairs of nodes, adding them up, and then dividing by the total number of pairs. This shows us, on average, the number of steps it takes to get from one node in the network to another.
-
-In order to find the shortest paths between all pairs of nodes we use the [standard dynamic programming algorithm by Floyd Warshall] (https://en.wikipedia.org/wiki/Floyd-Warshall_algorithm). You may have noticed that the model runs slowly for large number of nodes. That is because the time it takes for the Floyd Warshall algorithm (or other "all-pairs-shortest-path" algorithm) to run grows polynomially with the number of nodes.
-
-**Clustering Coefficient**: The clustering coefficient of a _node_ is the ratio of existing edges connecting a node's neighbors to each other to the maximum possible number of such edges. It is, in essence, a measure of the "all-my-friends-know-each-other" property. The clustering coefficient for the entire network is the average of the clustering coefficients of all the nodes.
 
 ### Plots
 
-1. The "Network Properties Rewire-One" visualizes the average-path-length and clustering-coefficient of the network as the user increases the number of single-rewires in the network.
+The "Adoption rates" plot visualizes the state of adoption in the network by classification of agents into different groups: adopter, moderate interested and non-adopter.
 
-2. The "Network Properties Rewire-All" visualizes the average-path-length and clustering coefficient of the network as the user manipulates the REWIRING-PROBABILITY slider.
+### Network
+The gray dotss are agents which aren't influencer, the blue ones are influencer. 
+If a gray dot turns magenta after a tick, this means that one of the posts has reached it. The links that can be recognized after a tick are the connections between the posts and the agents who have seen them. The posts themselves are the small red dots
 
-These two plots are separated because the x-axis is slightly different.  The REWIRE-ONE x-axis is the fraction of edges rewired so far, whereas the REWIRE-ALL x-axis is the probability of rewiring.
-
-The plots for both the clustering coefficient and average path length are normalized by dividing by the values of the initial lattice. The monitors CLUSTERING-COEFFICIENT and AVERAGE-PATH-LENGTH give the actual values.
-
-## THINGS TO NOTICE
-
-Note that for certain ranges of the fraction of nodes rewired, the average path length decreases faster than the clustering coefficient. In fact, there is a range of values for which the average path length is much smaller than clustering coefficient. (Note that the values for average path length and clustering coefficient have been normalized, so that they are more directly comparable.) Networks in that range are considered small worlds.
 
 ## THINGS TO TRY
+There are various global variables that can be used to influence the model:
+- num-nodes: number of agents in the model
+- rewiring-probability: probability that an initial link to a neighbor is rewired to a random agent (with a certain probability an influencer)
+- liking-prob: probability, that agent likes post distributed to her
+- commenting-prob: probability, that agent comments post distributed to her
+- sharing-prob: probability, that agent repostss post distributed to her
+- use-random-reed?: determines, if random seed should be set by user or not
+- seed: determination of the random seed which will be used (if set like this)
+- seeing-prob: probabiliy with which the post will be distributed to the agent (to do this, one line in the code must be commented and the line below it commented out (“Experiment 3”)
+- posts-frequency: factor with which the amount of posts the influencer post per tick can be changed
 
-Can you get a small world by repeatedly pressing REWIRE-ONE?
 
-Try plotting the values for different rewiring probabilities and observe the trends of the values for average path length and clustering coefficient.  What is the relationship between rewiring probability and fraction of nodes? In other words, what is the relationship between the rewire-one plot and the rewire-all plot?
 
-Do the trends depend on the number of nodes in the network?
+(note that the default values are the calibrated values)
 
-Set NUM-NODES to 80 and then press SETUP. Go to BehaviorSpace and run the VARY-REWIRING-PROBABILITY experiment. Try running the experiment multiple times without clearing the plot (i.e., do not run SETUP again).  What range of rewiring probabilities result in small world networks?
-
-## EXTENDING THE MODEL
-
-Try to see if you can produce the same results if you start with a different type of initial network. Create new BehaviorSpace experiments to compare results.
-
-In a precursor to this model, Watts and Strogatz created an "alpha" model where the rewiring was not based on a global rewiring probability. Instead, the probability that a node got connected to another node depended on how many mutual connections the two nodes had. The extent to which mutual connections mattered was determined by the parameter "alpha." Create the "alpha" model and see if it also can result in small world formation.
-
-## NETLOGO FEATURES
-
-Links are used extensively in this model to model the edges of the network. The model also uses custom link shapes for neighbor's neighbor links.
-
-Lists are used heavily in the procedures that calculates shortest paths.
-
-## RELATED MODELS
-
-See other models in the Networks section of the Models Library, such as Giant Component and Preferential Attachment.
-
-Check out the NW Extension General Examples model to see how similar models might implemented using the built-in NW extension.
-
-## CREDITS AND REFERENCES
-
-This model is adapted from: Duncan J. Watts, Six Degrees: The Science of a Connected Age (W.W. Norton & Company, New York, 2003), pages 83-100.
-
-The work described here was originally published in: DJ Watts and SH Strogatz. Collective dynamics of 'small-world' networks, Nature, 393:440-442 (1998).
-
-The small worlds idea was first made popular by Stanley Milgram's famous experiment (1967) which found that two random US citizens where on average connected by six acquaintances (giving rise to the popular "six degrees of separation" expression): Stanley Milgram. The Small World Problem, Psychology Today, 2: 60-67 (1967).
-
-This experiment was popularized into a game called "six degrees of Kevin Bacon" which you can find more information about here: https://oracleofbacon.org
-
-Thanks to Connor Bain for updating this model in 2020.
-
-## HOW TO CITE
-
-If you mention this model or the NetLogo software in a publication, we ask that you include the citations below.
-
-For the model itself:
-
-* Wilensky, U. (2015).  NetLogo Small Worlds model.  http://ccl.northwestern.edu/netlogo/models/SmallWorlds.  Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
-
-Please cite the NetLogo software as:
-
-* Wilensky, U. (1999). NetLogo. http://ccl.northwestern.edu/netlogo/. Center for Connected Learning and Computer-Based Modeling, Northwestern University, Evanston, IL.
 
 ## COPYRIGHT AND LICENSE
+
+The starting point for the network implementation is Uri Wilensky's model "Small Worlds", which has been adapted to the specific requirements of this research and extended by the mapping of a social network.
 
 Copyright 2015 Uri Wilensky.
 
 ![CC BY-NC-SA 3.0](http://ccl.northwestern.edu/images/creativecommons/byncsa.png)
-
-This work is licensed under the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 License.  To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-sa/3.0/ or send a letter to Creative Commons, 559 Nathan Abbott Way, Stanford, California 94305, USA.
-
-Commercial licenses are also available. To inquire about commercial licenses, please contact Uri Wilensky at uri@northwestern.edu.
 
 <!-- 2015 -->
 @#$#@#$#@
@@ -1484,7 +1347,7 @@ false
 Polygon -7500403 true true 270 75 225 30 30 225 75 270
 Polygon -7500403 true true 30 75 75 30 270 225 225 270
 @#$#@#$#@
-NetLogo 6.4.0
+NetLogo 6.3.0
 @#$#@#$#@
 setup
 repeat 5 [rewire-one]
