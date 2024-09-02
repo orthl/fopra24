@@ -1,8 +1,6 @@
-# Benötigte Bibliothek laden
 library(ggplot2)
 library(dplyr)  
 
-# Datei einlesen und die ersten 6 Zeilen überspringen
 data <- read.csv("E:/Desktop/FoPra_Sim experiment3_read-table.csv", 
                  skip = 6, 
                  header = TRUE, 
@@ -31,14 +29,13 @@ data_summarized <- aggregate(cbind(adopter, `non-adopter`, `moderate-interestet`
                              data = data_selected, 
                              FUN = mean)
 
-# Überprüfen, ob die Spalten korrekt ausgewählt wurden
 colnames(data_selected)
 head(data_selected)
 
-# Nur jeden 25. Step berücksichtigen
+# jeden 25. Step berücksichtigen
 data_filtered <- data_summarized[data_summarized$step %% 25 == 0, ]
 
-# Wert bei Step 400 berechnen
+# Wert bei Step 400
 value_at_step_400 <- data_filtered %>%
   filter(step == 400)
 
@@ -52,7 +49,7 @@ ggplot(data_filtered, aes(x = step, y = adopter, color = factor(seeing_prob), li
        linetype = "Lese Wahr.") +
   theme_minimal(base_size = 54)
 
-# Ausgabe der Werte - Step 400
+# Ausgabe der Step 400
 cat("Dateiname:", dateiname, "\n")
 value_at_step_400
 
